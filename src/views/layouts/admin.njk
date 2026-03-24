@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }} — Admin — {{ siteName }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/main.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <a href="/dashboard" class="logo">{{ siteName }}</a>
+        <span class="admin-badge">Admin</span>
+        <nav class="header-nav">
+          <a href="/admin/users" class="nav-link {% if activePage == 'users' %}active{% endif %}">Users</a>
+          <a href="/admin/domains" class="nav-link {% if activePage == 'domains' %}active{% endif %}">Domains</a>
+          <a href="/admin/records" class="nav-link {% if activePage == 'records' %}active{% endif %}">Records</a>
+          <a href="/admin/blocked-ips" class="nav-link {% if activePage == 'blocked-ips' %}active{% endif %}">Blocked IPs</a>
+          <a href="/admin/stats" class="nav-link {% if activePage == 'stats' %}active{% endif %}">Stats</a>
+          <a href="/admin/settings" class="nav-link {% if activePage == 'settings' %}active{% endif %}">Settings</a>
+        </nav>
+      </div>
+      <div class="header-right">
+        <a href="/dashboard" class="btn btn-sm btn-outline">← Dashboard</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/public/js/main.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,99 @@
+<div class="setup-tabs">
+  <button class="setup-tab active" onclick="showTab('linux')">Linux / macOS</button>
+  <button class="setup-tab" onclick="showTab('windows')">Windows</button>
+  <button class="setup-tab" onclick="showTab('api')">Direct API</button>
+</div>
+
+<div class="setup-panel active" id="tab-linux">
+  <p class="setup-desc">Create a cron job that runs every 5 minutes to keep your IP updated.</p>
+  <p class="form-label">1. Create the update script:</p>
+  <div class="code-block">
+    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+    <pre>#!/bin/bash
+# /usr/local/bin/ddns-update-{{ record.subdomain }}.sh
+curl -s "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}" >> /var/log/ddns.log 2>&1</pre>
+  </div>
+  <p class="form-label mt-3">2. Make it executable:</p>
+  <div class="code-block">
+    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+    <pre>chmod +x /usr/local/bin/ddns-update-{{ record.subdomain }}.sh</pre>
+  </div>
+  <p class="form-label mt-3">3. Add a cron job (every 5 minutes):</p>
+  <div class="code-block">
+    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+    <pre>*/5 * * * * /usr/local/bin/ddns-update-{{ record.subdomain }}.sh</pre>
+  </div>
+  <p class="form-label mt-3">Or using systemd timer — create <code>/etc/systemd/system/ddns-{{ record.subdomain }}.service</code>:</p>
+  <div class="code-block">
+    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+    <pre>[Unit]
+Description=DDNS update for {{ fqdn }}
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -s "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}"</pre>
+  </div>
+</div>
+
+<div class="setup-panel" id="tab-windows">
+  <p class="setup-desc">Use Windows Task Scheduler to run an update script every 5 minutes.</p>
+  <p class="form-label">1. Create <code>C:\ddns\update-{{ record.subdomain }}.ps1</code>:</p>
+  <div class="code-block">
+    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+    <pre># PowerShell DDNS Update Script
+$url = "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}"
+try {
+    $result = Invoke-RestMethod -Uri $url -Method Get
+    Add-Content -Path "C:\ddns\ddns.log" -Value "$(Get-Date) $result"
+} catch {
+    Add-Content -Path "C:\ddns\ddns.log" -Value "$(Get-Date) ERROR: $_"
+}</pre>
+  </div>
+  <p class="form-label mt-3">2. Register the scheduled task (run as Administrator):</p>
+  <div class="code-block">
+    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+    <pre>$action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-NonInteractive -File C:\ddns\update-{{ record.subdomain }}.ps1"
+$trigger = New-ScheduledTaskTrigger -RepetitionInterval (New-TimeSpan -Minutes 5) -Once -At (Get-Date)
+Register-ScheduledTask -TaskName "DDNS-{{ record.subdomain }}" -Action $action -Trigger $trigger -RunLevel Highest -Force</pre>
+  </div>
+</div>
+
+<div class="setup-panel" id="tab-api">
+  <p class="setup-desc">Make a GET request to update your IP. If <code>ip</code> is omitted, the server uses your request IP.</p>
+  <div class="code-block">
+    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+    <pre>GET {{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}
+# Optional: specify IP
+GET {{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&ip=1.2.3.4</pre>
+  </div>
+  <p class="form-label mt-3">Response codes:</p>
+  <table class="table table-sm mt-2">
+    <tr><td class="mono">good &lt;ip&gt;</td><td>IP updated successfully</td></tr>
+    <tr><td class="mono">nochg &lt;ip&gt;</td><td>IP unchanged</td></tr>
+    <tr><td class="mono">badauth</td><td>Invalid API key</td></tr>
+    <tr><td class="mono">badip</td><td>Invalid IP address</td></tr>
+    <tr><td class="mono">abuse</td><td>Rate limit exceeded</td></tr>
+    <tr><td class="mono">disabled</td><td>Record is disabled</td></tr>
+  </table>
+  <p class="form-label mt-3">curl example:</p>
+  <div class="code-block">
+    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+    <pre>curl "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}"</pre>
+  </div>
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.setup-tab').forEach((t,i) => t.classList.remove('active'));
+  document.querySelectorAll('.setup-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+function copyCode(btn) {
+  const pre = btn.nextElementSibling;
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+</script>

@@ -1,0 +1,54 @@
+{% extends "layouts/base.njk" %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-header">
+    <h1 class="auth-title">{{ siteName }}</h1>
+    <p class="auth-subtitle">Sign in to your account</p>
+  </div>
+
+  {% if message == 'verify_email' %}
+  <div class="alert alert-info">Check your email to verify your account before signing in.</div>
+  {% elif message == 'email_verified' %}
+  <div class="alert alert-success">Email verified! You can now sign in.</div>
+  {% elif message == 'password_reset' %}
+  <div class="alert alert-success">Password updated. Sign in with your new password.</div>
+  {% elif message == 'verify_resent' %}
+  <div class="alert alert-info">Verification email resent.</div>
+  {% endif %}
+
+  {% if error == 'invalid' %}
+  <div class="alert alert-error">Invalid email or password.</div>
+  {% elif error == 'disabled' %}
+  <div class="alert alert-error">Your account has been disabled.</div>
+  {% elif error == 'blocked' %}
+  <div class="alert alert-error">Access denied.</div>
+  {% elif error == 'unverified' %}
+  <div class="alert alert-warning">
+    Please verify your email first.
+    <a href="/auth/resend-verification?email={{ email | urlencode }}" class="alert-link">Resend verification email</a>
+  </div>
+  {% elif error == 'registration_disabled' %}
+  <div class="alert alert-error">Registrations are currently closed.</div>
+  {% endif %}
+
+  <form method="post" action="/auth/login" class="auth-form">
+    <div class="form-group">
+      <label class="form-label" for="email">Email</label>
+      <input type="email" id="email" name="email" class="form-input" required autofocus placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="password">
+        Password
+        <a href="/auth/forgot-password" class="form-label-link">Forgot password?</a>
+      </label>
+      <input type="password" id="password" name="password" class="form-input" required placeholder="••••••••">
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">Sign in</button>
+  </form>
+
+  <div class="auth-divider"><span>or</span></div>
+  <a href="/auth/otp" class="btn btn-outline btn-full">Sign in with email code</a>
+
+  <p class="auth-footer">Don't have an account? <a href="/auth/register">Create one</a></p>
+</div>
+{% endblock %}

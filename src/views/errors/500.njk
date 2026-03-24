@@ -1,0 +1,9 @@
+{% extends "layouts/base.njk" %}
+{% block content %}
+<div class="auth-card" style="text-align:center">
+  <h1 style="font-size:4rem;font-weight:700;color:#e5e7eb;margin:0">500</h1>
+  <h2 style="margin-top:8px">Something went wrong</h2>
+  <p class="text-muted">{{ message or 'An unexpected error occurred.' }}</p>
+  <a href="/dashboard" class="btn btn-primary mt-4">Go to dashboard</a>
+</div>
+{% endblock %}

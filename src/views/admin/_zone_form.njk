@@ -1,0 +1,30 @@
+<div class="form-group">
+  <label class="form-label" for="display_name">Display Name</label>
+  <input type="text" name="display_name" class="form-input" placeholder="e.g. YourDDNS Free Zone">
+</div>
+<div class="form-group">
+  <label class="form-label">Domain <span class="text-muted">(e.g. d.yourddns.com)</span></label>
+  <input type="text" name="domain" class="form-input" placeholder="d.yourddns.com">
+</div>
+<div class="form-group">
+  <label class="form-label">NS Hostnames <span class="text-muted">(one per line)</span></label>
+  <textarea name="ns_hostnames" class="form-input" rows="2" placeholder="ns1.yourddns.com&#10;ns2.yourddns.com"></textarea>
+</div>
+<div class="form-group">
+  <label class="form-label">SOA Email</label>
+  <input type="text" name="soa_email" class="form-input" placeholder="hostmaster@yourddns.com">
+</div>
+<div class="form-group">
+  <label class="form-label">Default TTL (s)</label>
+  <input type="number" name="default_ttl" class="form-input" value="300">
+</div>
+<div class="form-group">
+  <label class="form-label">Available to tiers</label>
+  <div class="checkbox-group">
+    {% for tier in tiers %}
+    <label class="checkbox-label">
+      <input type="checkbox" name="tier_ids" value="{{ tier.id }}"> {{ tier.display_name }}
+    </label>
+    {% endfor %}
+  </div>
+</div>

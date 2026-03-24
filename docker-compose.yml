@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    container_name: yourddns-app
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    expose:
+      - "3000"
+    networks:
+      - yourddns
+
+  nginx:
+    image: nginx:alpine
+    container_name: yourddns-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      - app
+    networks:
+      - yourddns
+
+networks:
+  yourddns:
+    driver: bridge

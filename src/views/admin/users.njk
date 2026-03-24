@@ -1,0 +1,129 @@
+{% extends "layouts/admin.njk" %}
+{% set activePage = 'users' %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">Users</h1>
+    <span class="text-muted">{{ users | length }} total</span>
+  </div>
+
+  {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  <div class="table-card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Plan</th>
+          <th>Records</th>
+          <th>Verified</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr class="{% if u.is_disabled %}row-disabled{% endif %}">
+          <td>
+            <div class="flex-cell">
+              {{ u.email }}
+              {% if u.is_admin %}<span class="badge badge-purple ml-1">Admin</span>{% endif %}
+            </div>
+          </td>
+          <td>
+            <form method="post" action="/admin/users/{{ u.id }}/tier" style="display:inline">
+              <select name="tier_id" class="form-select form-select-xs" onchange="this.form.submit()">
+                {% for tier in tiers %}
+                <option value="{{ tier.id }}" {% if tier.id == u.tier_id %}selected{% endif %}>{{ tier.display_name }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </td>
+          <td>{{ u.record_count }}</td>
+          <td>
+            <span class="badge {% if u.email_verified %}badge-green{% else %}badge-gray{% endif %}">
+              {{ 'Yes' if u.email_verified else 'No' }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if not u.is_disabled %}badge-green{% else %}badge-red{% endif %}">
+              {{ 'Active' if not u.is_disabled else 'Disabled' }}
+            </span>
+          </td>
+          <td class="text-muted">{{ u.created_at | date }}</td>
+          <td class="actions-cell">
+            <div class="dropdown-trigger">
+              <button class="icon-btn" onclick="toggleRowMenu('u{{ u.id }}')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+              <div class="row-dropdown" id="rowMenuu{{ u.id }}">
+                <form method="post" action="/admin/users/{{ u.id }}/login-as">
+                  <button type="submit" class="dropdown-item">Login as user</button>
+                </form>
+                {% if u.is_disabled %}
+                <form method="post" action="/admin/users/{{ u.id }}/enable">
+                  <button type="submit" class="dropdown-item">Enable</button>
+                </form>
+                {% else %}
+                <form method="post" action="/admin/users/{{ u.id }}/disable">
+                  <button type="submit" class="dropdown-item">Disable</button>
+                </form>
+                {% endif %}
+                {% if u.is_admin %}
+                <form method="post" action="/admin/users/{{ u.id }}/demote">
+                  <button type="submit" class="dropdown-item">Remove admin</button>
+                </form>
+                {% else %}
+                <form method="post" action="/admin/users/{{ u.id }}/promote">
+                  <button type="submit" class="dropdown-item">Make admin</button>
+                </form>
+                {% endif %}
+                <button class="dropdown-item" onclick="openSetPassword({{ u.id }}, '{{ u.email | escape }}')">Set password</button>
+                <div class="dropdown-divider"></div>
+                <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Delete user {{ u.email | escape }}? This will also delete all their records.')">
+                  <button type="submit" class="dropdown-item text-danger">Delete</button>
+                </form>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Set Password Modal -->
+<div class="modal-overlay" id="setPasswordModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 class="modal-title">Set Password</h2>
+      <button class="modal-close" onclick="closeModal('setPasswordModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" id="setPasswordForm" class="modal-body">
+      <p class="text-muted mb-3" id="setPasswordEmail"></p>
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <input type="password" name="new_password" class="form-input" required minlength="8">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('setPasswordModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Set Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openSetPassword(id, email) {
+  document.getElementById('setPasswordForm').action = '/admin/users/' + id + '/set-password';
+  document.getElementById('setPasswordEmail').textContent = email;
+  openModal('setPasswordModal');
+}
+</script>
+{% endblock %}

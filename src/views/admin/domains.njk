@@ -1,0 +1,181 @@
+{% extends "layouts/admin.njk" %}
+{% set activePage = 'domains' %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">Domains / Zones</h1>
+    <button class="btn btn-primary" onclick="openModal('addZoneModal')">+ Add Zone</button>
+  </div>
+
+  {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  {% if zones | length == 0 %}
+  <div class="empty-state"><h3>No zones yet</h3><p>Add a DNS zone to start accepting DDNS records.</p></div>
+  {% else %}
+  <div class="zone-list">
+    {% for zone in zones %}
+    <div class="card mb-4">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">{{ zone.domain }}</h2>
+          <span class="text-muted">{{ zone.record_count }} records</span>
+        </div>
+        <div class="flex gap-2">
+          <span class="badge {% if zone.is_active %}badge-green{% else %}badge-gray{% endif %}">{{ 'Active' if zone.is_active else 'Inactive' }}</span>
+          <button class="btn btn-sm btn-outline" onclick="openEditZone({{ zone | json }})">Edit</button>
+          <form method="post" action="/admin/domains/{{ zone.id }}/delete" onsubmit="return confirm('Delete zone {{ zone.domain }}? All DDNS records in this zone will also be deleted.')">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="zone-info-grid">
+          <div class="info-row"><span class="info-label">NS Records</span><span class="mono">{% for ns in zone.ns_list %}{{ ns }}{% if not loop.last %}, {% endif %}{% endfor %}</span></div>
+          <div class="info-row"><span class="info-label">SOA Email</span><span class="mono">{{ zone.soa_email }}</span></div>
+          <div class="info-row"><span class="info-label">Default TTL</span><span class="mono">{{ zone.default_ttl }}s</span></div>
+          <div class="info-row"><span class="info-label">Available tiers</span>
+            <span>{{ zone.tier_ids or 'None' }}</span>
+          </div>
+        </div>
+
+        <h3 class="section-title mt-4">Static DNS Records</h3>
+        {% if zone.static_records | length > 0 %}
+        <table class="table table-sm mt-2">
+          <thead><tr><th>Name</th><th>Type</th><th>Value</th><th>TTL</th><th></th></tr></thead>
+          <tbody>
+            {% for rec in zone.static_records %}
+            <tr>
+              <td class="mono">{{ rec.name }}</td>
+              <td><span class="badge badge-blue">{{ rec.type }}</span></td>
+              <td class="mono">{{ rec.value }}{% if rec.priority %} (pri: {{ rec.priority }}){% endif %}</td>
+              <td class="mono">{{ rec.ttl }}s</td>
+              <td>
+                <form method="post" action="/admin/domains/static-records/{{ rec.id }}/delete">
+                  <button type="submit" class="btn btn-xs btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+        <button class="btn btn-sm btn-outline mt-2" onclick="openAddStatic({{ zone.id }})">+ Add static record</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add Zone Modal -->
+<div class="modal-overlay" id="addZoneModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Zone</h2>
+      <button class="modal-close" onclick="closeModal('addZoneModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" action="/admin/domains" class="modal-body">
+      {% include "admin/_zone_form.njk" %}
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addZoneModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Zone</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Zone Modal -->
+<div class="modal-overlay" id="editZoneModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Edit Zone</h2>
+      <button class="modal-close" onclick="closeModal('editZoneModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" id="editZoneForm" class="modal-body">
+      {% include "admin/_zone_form.njk" %}
+      <div class="form-group">
+        <label class="form-label flex gap-2 items-center">
+          <input type="checkbox" name="is_active" id="editIsActive"> Active
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('editZoneModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Static Record Modal -->
+<div class="modal-overlay" id="addStaticModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Static Record</h2>
+      <button class="modal-close" onclick="closeModal('addStaticModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" id="addStaticForm" class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Name <span class="text-muted">(@ for apex)</span></label>
+        <input type="text" name="name" class="form-input" required placeholder="@ or www or mail">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select name="type" class="form-select">
+          <option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option><option>TXT</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Value</label>
+        <input type="text" name="value" class="form-input" required placeholder="IP or hostname">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">TTL (s)</label>
+          <input type="number" name="ttl" class="form-input" value="300">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <input type="number" name="priority" class="form-input" placeholder="MX only">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addStaticModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const tiers = {{ tiers | json }};
+
+function openEditZone(zone) {
+  const nsList = JSON.parse(zone.ns_hostnames || '[]');
+  const form = document.getElementById('editZoneForm');
+  form.action = '/admin/domains/' + zone.id + '/update';
+  form.querySelector('[name=display_name]').value = zone.display_name || '';
+  form.querySelector('[name=ns_hostnames]').value = nsList.join('\n');
+  form.querySelector('[name=soa_email]').value = zone.soa_email || '';
+  form.querySelector('[name=default_ttl]').value = zone.default_ttl || 300;
+  const tierIds = (zone.tier_ids || '').split(',').map(Number);
+  form.querySelectorAll('[name=tier_ids]').forEach(cb => {
+    cb.checked = tierIds.includes(parseInt(cb.value));
+  });
+  document.getElementById('editIsActive').checked = !!zone.is_active;
+  openModal('editZoneModal');
+}
+
+function openAddStatic(zoneId) {
+  document.getElementById('addStaticForm').action = '/admin/domains/' + zoneId + '/static-records';
+  openModal('addStaticModal');
+}
+</script>
+{% endblock %}

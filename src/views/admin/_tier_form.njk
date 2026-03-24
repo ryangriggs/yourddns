@@ -1,0 +1,55 @@
+<div class="form-row">
+  <div class="form-group">
+    <label class="form-label">Internal name <span class="text-muted">(no spaces)</span></label>
+    <input type="text" name="name" class="form-input" placeholder="pro_plus">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Display name</label>
+    <input type="text" name="display_name" class="form-input" placeholder="Pro Plus" required>
+  </div>
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label class="form-label">Max entries</label>
+    <input type="number" name="max_entries" class="form-input" value="3" min="1" required>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Min TTL (s)</label>
+    <input type="number" name="min_ttl" class="form-input" value="300" min="60" required>
+  </div>
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label class="form-label">Max resolutions/hr</label>
+    <input type="number" name="max_resolutions_per_hour" class="form-input" value="1000" required>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Max updates/hr</label>
+    <input type="number" name="max_updates_per_hour" class="form-input" value="10" required>
+  </div>
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label class="form-label">Min subdomain length</label>
+    <input type="number" name="min_subdomain_length" class="form-input" value="4" min="1" required>
+  </div>
+  <div class="form-group">
+    <label class="form-label">History days</label>
+    <input type="number" name="history_days" class="form-input" value="7" min="1" required>
+  </div>
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label class="form-label">Price (cents/month)</label>
+    <input type="number" name="price_monthly" class="form-input" value="0" min="0">
+    <p class="form-hint">0 = free</p>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Sort order</label>
+    <input type="number" name="sort_order" class="form-input" value="0">
+  </div>
+</div>
+<div class="form-group">
+  <label class="form-label">Stripe Price ID <span class="text-muted">(optional)</span></label>
+  <input type="text" name="stripe_price_id" class="form-input" placeholder="price_...">
+</div>

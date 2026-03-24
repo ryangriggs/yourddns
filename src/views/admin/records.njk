@@ -1,0 +1,60 @@
+{% extends "layouts/admin.njk" %}
+{% set activePage = 'records' %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">All Records</h1>
+    <span class="text-muted">{{ records | length }} total</span>
+  </div>
+
+  {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  <div class="table-card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Subdomain</th>
+          <th>User</th>
+          <th>IP</th>
+          <th>TTL</th>
+          <th>Hits</th>
+          <th>Last Update</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr class="{% if not r.is_enabled %}row-disabled{% endif %}">
+          <td class="mono">{{ r.subdomain }}.{{ r.zone_domain }}</td>
+          <td class="text-muted">{{ r.user_email }}</td>
+          <td class="mono">{{ r.ip_address or '—' }}</td>
+          <td class="mono">{{ r.ttl }}s</td>
+          <td>{{ r.hit_count }}</td>
+          <td class="text-muted">{{ r.last_update_received_at | date('relative') }}</td>
+          <td><span class="badge {% if r.is_enabled %}badge-green{% else %}badge-gray{% endif %}">{{ 'Active' if r.is_enabled else 'Disabled' }}</span></td>
+          <td class="actions-cell">
+            <div class="dropdown-trigger">
+              <button class="icon-btn" onclick="toggleRowMenu('r{{ r.id }}')">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+              <div class="row-dropdown" id="rowMenur{{ r.id }}">
+                {% if r.is_enabled %}
+                <form method="post" action="/admin/records/{{ r.id }}/disable"><button type="submit" class="dropdown-item">Disable</button></form>
+                {% else %}
+                <form method="post" action="/admin/records/{{ r.id }}/enable"><button type="submit" class="dropdown-item">Enable</button></form>
+                {% endif %}
+                <div class="dropdown-divider"></div>
+                <form method="post" action="/admin/records/{{ r.id }}/delete" onsubmit="return confirm('Delete this record?')">
+                  <button type="submit" class="dropdown-item text-danger">Delete</button>
+                </form>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

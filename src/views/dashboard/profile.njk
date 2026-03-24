@@ -1,0 +1,43 @@
+{% extends "layouts/base.njk" %}
+{% set activePage = 'profile' %}
+{% block content %}
+<div class="page-container page-narrow">
+  <div class="page-header">
+    <h1 class="page-title">Profile</h1>
+  </div>
+
+  {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  <div class="card mb-4">
+    <div class="card-header"><h2 class="card-title">Account</h2></div>
+    <div class="card-body">
+      <div class="info-row"><span class="info-label">Email</span><span>{{ user.email }}</span></div>
+      <div class="info-row"><span class="info-label">Plan</span>
+        <span class="badge badge-blue">{{ user.tier_display_name }}</span>
+      </div>
+      <div class="info-row"><span class="info-label">Member since</span><span class="text-muted">{{ user.created_at | date }}</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Change Password</h2></div>
+    <div class="card-body">
+      <form method="post" action="/dashboard/profile/change-password">
+        <div class="form-group">
+          <label class="form-label" for="current_password">Current password</label>
+          <input type="password" id="current_password" name="current_password" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="new_password">New password</label>
+          <input type="password" id="new_password" name="new_password" class="form-input" required minlength="8">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="new_password2">Confirm new password</label>
+          <input type="password" id="new_password2" name="new_password2" class="form-input" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Update password</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

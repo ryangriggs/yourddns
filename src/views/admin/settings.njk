@@ -1,0 +1,165 @@
+{% extends "layouts/admin.njk" %}
+{% set activePage = 'settings' %}
+{% block content %}
+<div class="page-container page-narrow">
+  <div class="page-header"><h1 class="page-title">Settings</h1></div>
+
+  {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  <form method="post" action="/admin/settings">
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="card-title">Site</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Site Name</label>
+          <input type="text" name="site_name" class="form-input" value="{{ settings.site_name.value }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Primary Domain</label>
+          <input type="text" name="site_domain" class="form-input" value="{{ settings.site_domain.value }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Site URL</label>
+          <input type="text" name="site_url" class="form-input" value="{{ settings.site_url.value }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Support Email</label>
+          <input type="email" name="support_email" class="form-input" value="{{ settings.support_email.value }}">
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="card-title">Authentication Limits</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">OTP resend interval (minutes)</label>
+          <input type="number" name="otp_resend_interval_minutes" class="form-input" value="{{ settings.otp_resend_interval_minutes.value }}" min="1">
+          <p class="form-hint">Minimum time between OTP emails per user.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max OTP attempts per hour</label>
+          <input type="number" name="otp_max_attempts_per_hour" class="form-input" value="{{ settings.otp_max_attempts_per_hour.value }}" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max password attempts per hour</label>
+          <input type="number" name="password_max_attempts_per_hour" class="form-input" value="{{ settings.password_max_attempts_per_hour.value }}" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label flex gap-2 items-center">
+            <input type="checkbox" name="registration_enabled" value="true" {% if settings.registration_enabled.value == 'true' %}checked{% endif %}>
+            Allow new registrations
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="card-title">Stripe</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label flex gap-2 items-center">
+            <input type="checkbox" name="stripe_enabled" value="true" {% if settings.stripe_enabled.value == 'true' %}checked{% endif %}>
+            Enable Stripe billing
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Publishable Key</label>
+          <input type="text" name="stripe_publishable_key" class="form-input" value="{{ settings.stripe_publishable_key.value }}">
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save Settings</button>
+  </form>
+
+  <!-- Tier Management -->
+  <div class="mt-6">
+    <div class="page-header">
+      <h2 class="page-title">Plans / Tiers</h2>
+      <button class="btn btn-primary" onclick="openModal('addTierModal')">+ Add Tier</button>
+    </div>
+    <div class="table-card">
+      <table class="table">
+        <thead>
+          <tr><th>Name</th><th>Entries</th><th>Min TTL</th><th>Res/hr</th><th>Updates/hr</th><th>Min Sub Len</th><th>History</th><th>Price/mo</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for tier in tiers %}
+          <tr>
+            <td><strong>{{ tier.display_name }}</strong><br><span class="text-muted text-xs">{{ tier.name }}</span></td>
+            <td>{{ tier.max_entries }}</td>
+            <td>{{ tier.min_ttl }}s</td>
+            <td>{{ tier.max_resolutions_per_hour }}</td>
+            <td>{{ tier.max_updates_per_hour }}</td>
+            <td>{{ tier.min_subdomain_length }}</td>
+            <td>{{ tier.history_days }}d</td>
+            <td>{% if tier.price_monthly == 0 %}Free{% else %}${{ (tier.price_monthly / 100) | round(2) }}{% endif %}</td>
+            <td><button class="btn btn-xs btn-outline" onclick="openEditTier({{ tier | json }})">Edit</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add Tier Modal -->
+<div class="modal-overlay" id="addTierModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Tier</h2>
+      <button class="modal-close" onclick="closeModal('addTierModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" action="/admin/tiers" class="modal-body">
+      {% include "admin/_tier_form.njk" %}
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addTierModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Tier Modal -->
+<div class="modal-overlay" id="editTierModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Edit Tier</h2>
+      <button class="modal-close" onclick="closeModal('editTierModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" action="/admin/tiers" id="editTierForm" class="modal-body">
+      <input type="hidden" name="id" id="editTierId">
+      {% include "admin/_tier_form.njk" %}
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('editTierModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditTier(tier) {
+  const form = document.getElementById('editTierForm');
+  document.getElementById('editTierId').value = tier.id;
+  form.querySelector('[name=display_name]').value = tier.display_name;
+  form.querySelector('[name=max_entries]').value = tier.max_entries;
+  form.querySelector('[name=min_ttl]').value = tier.min_ttl;
+  form.querySelector('[name=max_resolutions_per_hour]').value = tier.max_resolutions_per_hour;
+  form.querySelector('[name=max_updates_per_hour]').value = tier.max_updates_per_hour;
+  form.querySelector('[name=min_subdomain_length]').value = tier.min_subdomain_length;
+  form.querySelector('[name=history_days]').value = tier.history_days;
+  form.querySelector('[name=price_monthly]').value = tier.price_monthly;
+  form.querySelector('[name=stripe_price_id]').value = tier.stripe_price_id || '';
+  form.querySelector('[name=sort_order]').value = tier.sort_order;
+  openModal('editTierModal');
+}
+</script>
+{% endblock %}

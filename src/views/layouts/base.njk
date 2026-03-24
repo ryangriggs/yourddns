@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }} — {{ siteName }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/css/main.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% if user %}
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <a href="/dashboard" class="logo">{{ siteName }}</a>
+        <nav class="header-nav">
+          <a href="/dashboard" class="nav-link {% if activePage == 'dashboard' %}active{% endif %}">Records</a>
+          <a href="/reports" class="nav-link {% if activePage == 'reports' %}active{% endif %}">Reports</a>
+        </nav>
+      </div>
+      <div class="header-right">
+        {% if user.isImpersonated %}
+        <div class="impersonation-bar">
+          Viewing as <strong>{{ user.email }}</strong>
+          <form method="post" action="/admin/stop-impersonating" style="display:inline">
+            <button type="submit" class="btn btn-xs btn-outline ml-2">Exit</button>
+          </form>
+        </div>
+        {% endif %}
+        <div class="user-menu" id="userMenuBtn">
+          <span class="user-email">{{ user.email }}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          <div class="user-dropdown" id="userDropdown">
+            <a href="/dashboard/profile" class="dropdown-item">Profile</a>
+            {% if user.is_admin or user.realUserId %}
+            <a href="/admin" class="dropdown-item">Admin Panel</a>
+            {% endif %}
+            <div class="dropdown-divider"></div>
+            <form method="post" action="/auth/logout">
+              <button type="submit" class="dropdown-item w-full text-left">Sign out</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <main class="main-content {% if not user %}auth-layout{% endif %}">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="/public/js/main.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,35 @@
+{% extends "layouts/base.njk" %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-header">
+    <h1 class="auth-title">{{ siteName }}</h1>
+    <p class="auth-subtitle">Create your account</p>
+  </div>
+
+  {% if error == 'missing' %}<div class="alert alert-error">All fields are required.</div>
+  {% elif error == 'password_mismatch' %}<div class="alert alert-error">Passwords do not match.</div>
+  {% elif error == 'password_short' %}<div class="alert alert-error">Password must be at least 8 characters.</div>
+  {% elif error == 'invalid_email' %}<div class="alert alert-error">Please enter a valid email address.</div>
+  {% elif error == 'email_taken' %}<div class="alert alert-error">An account with that email already exists.</div>
+  {% elif error == 'blocked' %}<div class="alert alert-error">Access denied.</div>
+  {% endif %}
+
+  <form method="post" action="/auth/register" class="auth-form">
+    <div class="form-group">
+      <label class="form-label" for="email">Email</label>
+      <input type="email" id="email" name="email" class="form-input" required autofocus placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="password">Password</label>
+      <input type="password" id="password" name="password" class="form-input" required placeholder="Min. 8 characters">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="password2">Confirm Password</label>
+      <input type="password" id="password2" name="password2" class="form-input" required placeholder="••••••••">
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">Create account</button>
+  </form>
+
+  <p class="auth-footer">Already have an account? <a href="/auth/login">Sign in</a></p>
+</div>
+{% endblock %}
