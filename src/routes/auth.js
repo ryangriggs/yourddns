@@ -255,7 +255,7 @@ module.exports = async function authRoutes(fastify) {
 
   // POST /auth/logout
   fastify.post('/auth/logout', async (req, reply) => {
-    req.session.delete();
+    await req.session.destroy();
     return reply.redirect('/auth/login');
   });
 };

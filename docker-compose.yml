@@ -7,8 +7,8 @@ services:
     volumes:
       - ./data:/app/data
     ports:
-      - "53:53/udp"
-      - "53:53/tcp"
+      - "5300:53/udp"
+      - "5300:53/tcp"
     expose:
       - "3000"
     healthcheck:

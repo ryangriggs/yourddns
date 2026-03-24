@@ -148,6 +148,12 @@ CREATE TABLE IF NOT EXISTS admin_settings (
   description TEXT
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  data TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_ddns_records_zone_sub ON ddns_records(zone_id, subdomain);
 CREATE INDEX IF NOT EXISTS idx_ddns_records_user ON ddns_records(user_id);

@@ -43,16 +43,31 @@ cd yourddns
 cp .env.example .env
 # Edit .env — set SESSION_SECRET, PAT_HMAC_SECRET, RESEND_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
 
-# 3. Generate a session secret (32+ chars)
+# 3. Generate secrets
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+# Run twice — use first output for SESSION_SECRET, second for PAT_HMAC_SECRET
 
-# 4. Start (HTTP only first, for certbot)
+# 4. Disable systemd-resolved if it holds port 53 (common on Ubuntu)
+sudo systemctl stop systemd-resolved
+sudo systemctl disable systemd-resolved
+echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
+
+# 5. Set up iptables forwarding for DNS (53 → 5300)
+sudo iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5300
+sudo iptables -t nat -A PREROUTING -p tcp --dport 53 -j REDIRECT --to-port 5300
+sudo apt-get install -y iptables-persistent && sudo netfilter-persistent save
+
+# 6. For first boot: nginx needs SSL certs to start, so temporarily use HTTP-only config
+# Comment out the two HTTPS server{} blocks in nginx/conf.d/yourddns.conf, then:
+sudo mkdir -p /var/www/certbot
 docker compose up -d
 
-# 5. Get SSL certificate
-certbot certonly --webroot -w /var/www/certbot -d yourddns.com -d www.yourddns.com
+# 7. Get SSL certificate
+sudo certbot certonly --webroot -w /var/www/certbot \
+  -d yourddns.com -d www.yourddns.com \
+  --email you@yourddns.com --agree-tos --non-interactive
 
-# 6. Reload nginx with HTTPS
+# 8. Restore the full nginx config (uncomment the HTTPS blocks), then reload
 docker compose exec nginx nginx -s reload
 ```
 
@@ -98,6 +113,31 @@ Response: `good 1.2.3.4` (changed), `nochg 1.2.3.4` (unchanged), `badauth`, `bad
 | Pro | 50 | 60s | 20,000 | 60 | 2 chars |
 
 All values are configurable in Admin → Settings.
+
+## DNS Port Setup
+
+The DNS server binds to port 53 inside the container, mapped to host port **5300** by default (to avoid conflicts with `systemd-resolved` or other services). Use iptables to forward public port 53 → 5300:
+
+```bash
+# Forward DNS traffic to the container
+sudo iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5300
+sudo iptables -t nat -A PREROUTING -p tcp --dport 53 -j REDIRECT --to-port 5300
+
+# Persist rules across reboots
+sudo apt-get install -y iptables-persistent
+sudo netfilter-persistent save
+```
+
+If port 5300 is blocked by a cloud firewall (e.g. DigitalOcean), also open it:
+```bash
+sudo ufw allow 5300/udp
+sudo ufw allow 5300/tcp
+```
+
+To verify DNS is working after setup:
+```bash
+dig @<your-server-ip> yourdomain.d.yourddns.com
+```
 
 ## DNS Record Setup
 

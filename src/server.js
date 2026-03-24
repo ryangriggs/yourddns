@@ -8,8 +8,9 @@ const fastify = require('fastify')({
   trustProxy: true,  // trust X-Forwarded-For from nginx
 });
 const nunjucks = require('nunjucks');
-const { initDb, getSetting } = require('./db/index');
+const { initDb, getDb, getSetting } = require('./db/index');
 const { startDnsServer } = require('./dns-server');
+const SQLiteSessionStore = require('./plugins/session-store');
 const { startMaintenanceJob } = require('./services/maintenance');
 
 async function build() {
@@ -36,20 +37,17 @@ async function build() {
 
   await fastify.register(require('@fastify/cookie'));
 
-  // Build exactly 32-byte key for @fastify/secure-session
-  const rawSecret = process.env.SESSION_SECRET || 'default-secret-change-this-now!!';
-  const sessionKey = Buffer.alloc(32);
-  Buffer.from(rawSecret, 'utf8').copy(sessionKey);
-
-  await fastify.register(require('@fastify/secure-session'), {
-    cookieName: 'session',
-    key: sessionKey,
+  await fastify.register(require('@fastify/session'), {
+    cookieName: 'sid',
+    secret: process.env.SESSION_SECRET || 'default-secret-change-this-in-production-min32chars!!',
+    store: new SQLiteSessionStore(getDb()),
+    saveUninitialized: false,
     cookie: {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
     },
   });
 

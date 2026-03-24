@@ -33,6 +33,9 @@ function pruneOldHits() {
       )
     `).run();
 
+    // Clean up expired sessions
+    db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')").run();
+
     // Clean up expired OTP codes
     db.prepare("DELETE FROM otp_codes WHERE expires_at < datetime('now')").run();
 
