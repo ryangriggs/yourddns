@@ -78,7 +78,7 @@ async function build() {
           }
           return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         });
-        env.addFilter('json', (val) => JSON.stringify(val));
+        env.addFilter('json', (val) => new nunjucks.runtime.SafeString(JSON.stringify(val)));
       },
     },
     defaultContext: {},

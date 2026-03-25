@@ -110,4 +110,4 @@ function setSetting(key, value) {
   `).run(key, value, key);
 }
 
-module.exports = { initDb, getDb, getSetting, getAllSettings, setSetting };
+module.exports = { initDb, getDb, getSetting, getAllSettings, setSetting, withTransaction };

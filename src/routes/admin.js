@@ -1,7 +1,7 @@
 'use strict';
 
 const bcrypt = require('bcryptjs');
-const { getDb, getSetting, getAllSettings, setSetting } = require('../db/index');
+const { getDb, getSetting, getAllSettings, setSetting, withTransaction } = require('../db/index');
 
 function flash(req) {
   const f = req.session.flash;
@@ -131,7 +131,7 @@ module.exports = async function adminRoutes(fastify) {
     const zoneId = Number(r.lastInsertRowid);
     const tIds = Array.isArray(tier_ids) ? tier_ids : (tier_ids ? [tier_ids] : []);
     const ins = db.prepare('INSERT OR IGNORE INTO zone_tiers (zone_id, tier_id) VALUES (?, ?)');
-    db.transaction(() => { for (const t of tIds) ins.run(zoneId, t); })();
+    withTransaction(() => { for (const t of tIds) ins.run(zoneId, t); });
 
     req.session.flash = { type: 'success', message: 'Zone created.' };
     return reply.redirect('/admin/domains');
@@ -150,7 +150,7 @@ module.exports = async function adminRoutes(fastify) {
     db.prepare('DELETE FROM zone_tiers WHERE zone_id = ?').run(req.params.id);
     const tIds = Array.isArray(tier_ids) ? tier_ids : (tier_ids ? [tier_ids] : []);
     const ins = db.prepare('INSERT OR IGNORE INTO zone_tiers (zone_id, tier_id) VALUES (?, ?)');
-    db.transaction(() => { for (const t of tIds) ins.run(req.params.id, t); })();
+    withTransaction(() => { for (const t of tIds) ins.run(req.params.id, t); });
 
     req.session.flash = { type: 'success', message: 'Zone updated.' };
     return reply.redirect('/admin/domains');
