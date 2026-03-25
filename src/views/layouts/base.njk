@@ -45,9 +45,46 @@
             </form>
           </div>
         </div>
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
       </div>
     </div>
   </header>
+
+  <div class="mobile-menu-backdrop" id="mobileMenuBackdrop"></div>
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-head">
+      <span class="logo">{{ siteName }}</span>
+      <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <nav class="mobile-nav">
+      <a href="/dashboard" class="mobile-nav-link {% if activePage == 'dashboard' %}active{% endif %}">Records</a>
+      <a href="/reports" class="mobile-nav-link {% if activePage == 'reports' %}active{% endif %}">Reports</a>
+      <a href="/dashboard/zones" class="mobile-nav-link {% if activePage == 'zones' %}active{% endif %}">Domains</a>
+    </nav>
+    <div class="mobile-menu-footer">
+      {% if user.isImpersonated %}
+      <div class="mobile-menu-email" style="color:#92400e;background:#fef3c7;border-radius:6px;padding:8px 12px;margin-bottom:4px">
+        Impersonating <strong>{{ user.email }}</strong>
+      </div>
+      <form method="post" action="/admin/stop-impersonating">
+        <button type="submit" class="mobile-nav-link" style="width:100%;background:none;border:none;cursor:pointer;text-align:left;font-family:inherit">Exit impersonation</button>
+      </form>
+      {% else %}
+      <div class="mobile-menu-email">{{ user.email }}</div>
+      {% endif %}
+      <a href="/dashboard/profile" class="mobile-nav-link">Profile</a>
+      {% if user.is_admin or user.realUserId %}
+      <a href="/admin" class="mobile-nav-link">Admin Panel</a>
+      {% endif %}
+      <form method="post" action="/auth/logout">
+        <button type="submit" class="mobile-nav-link" style="width:100%;background:none;border:none;cursor:pointer;text-align:left;font-family:inherit;color:#dc2626">Sign out</button>
+      </form>
+    </div>
+  </div>
   {% endif %}
 
   <main class="main-content {% if not user %}auth-layout{% endif %}">

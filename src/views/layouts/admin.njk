@@ -27,9 +27,33 @@
       </div>
       <div class="header-right">
         <a href="/dashboard" class="btn btn-sm btn-outline">← Dashboard</a>
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
       </div>
     </div>
   </header>
+
+  <div class="mobile-menu-backdrop" id="mobileMenuBackdrop"></div>
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-menu-head">
+      <span class="logo" style="font-size:0.875rem">Admin Panel</span>
+      <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <nav class="mobile-nav">
+      <a href="/admin/users" class="mobile-nav-link {% if activePage == 'users' %}active{% endif %}">Users</a>
+      <a href="/admin/domains" class="mobile-nav-link {% if activePage == 'domains' %}active{% endif %}">Domains</a>
+      <a href="/admin/records" class="mobile-nav-link {% if activePage == 'records' %}active{% endif %}">Records</a>
+      <a href="/admin/blocked-ips" class="mobile-nav-link {% if activePage == 'blocked-ips' %}active{% endif %}">Blocked IPs</a>
+      <a href="/admin/stats" class="mobile-nav-link {% if activePage == 'stats' %}active{% endif %}">Stats</a>
+      <a href="/admin/settings" class="mobile-nav-link {% if activePage == 'settings' %}active{% endif %}">Settings</a>
+    </nav>
+    <div class="mobile-menu-footer">
+      <a href="/dashboard" class="mobile-nav-link">← Dashboard</a>
+    </div>
+  </div>
 
   <main class="main-content">
     {% block content %}{% endblock %}

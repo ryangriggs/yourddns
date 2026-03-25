@@ -24,8 +24,31 @@ document.addEventListener('keydown', (e) => {
     document.querySelectorAll('.row-dropdown.open').forEach(el => el.classList.remove('open'));
     const um = document.getElementById('userMenuBtn');
     if (um) um.classList.remove('open');
+    closeMobileMenu();
   }
 });
+
+// ── Mobile Menu ───────────────────────────────────────────────────────────
+function openMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  const backdrop = document.getElementById('mobileMenuBackdrop');
+  if (menu) menu.classList.add('open');
+  if (backdrop) backdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobileMenu() {
+  const menu = document.getElementById('mobileMenu');
+  const backdrop = document.getElementById('mobileMenuBackdrop');
+  if (menu) menu.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('open');
+  document.body.style.overflow = '';
+}
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+if (hamburgerBtn) hamburgerBtn.addEventListener('click', openMobileMenu);
+const mobileMenuClose = document.getElementById('mobileMenuClose');
+if (mobileMenuClose) mobileMenuClose.addEventListener('click', closeMobileMenu);
+const mobileMenuBackdrop = document.getElementById('mobileMenuBackdrop');
+if (mobileMenuBackdrop) mobileMenuBackdrop.addEventListener('click', closeMobileMenu);
 
 // ── User Menu ────────────────────────────────────────────────────────────────
 const userMenuBtn = document.getElementById('userMenuBtn');
