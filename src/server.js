@@ -24,7 +24,7 @@ async function build() {
         fontSrc: ["'self'", 'fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:'],
         connectSrc: ["'self'"],
-        scriptSrcAttr: false,
+        scriptSrcAttr: ["'unsafe-inline'"],
       },
     },
   });
