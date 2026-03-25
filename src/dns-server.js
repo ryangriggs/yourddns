@@ -71,7 +71,7 @@ async function handleQuery(request, send, rinfo) {
     const qtype = question.type;
 
     // Find which zone this query belongs to
-    const zones = db.prepare('SELECT * FROM zones WHERE is_active = 1 AND validated = 1 ORDER BY length(domain) DESC').all();
+    const zones = db.prepare('SELECT * FROM zones WHERE is_active = 1 ORDER BY length(domain) DESC').all();
     let matchedZone = null;
     let subdomain = null;
 

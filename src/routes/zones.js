@@ -119,7 +119,7 @@ module.exports = async function zonesRoutes(fastify) {
 
     db.prepare(`
       INSERT INTO zones (domain, display_name, ns_hostnames, soa_email, user_id, validated, zone_type, is_active)
-      VALUES (?, ?, ?, ?, ?, 0, ?, 0)
+      VALUES (?, ?, ?, ?, ?, 0, ?, 1)
     `).run(domain, domain, nsHostnames, `hostmaster@${domain}`, req.user.id, zoneType);
 
     const newZone = db.prepare('SELECT id FROM zones WHERE LOWER(domain) = ? AND user_id = ?').get(domain, req.user.id);
