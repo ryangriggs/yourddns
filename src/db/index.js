@@ -67,6 +67,7 @@ async function seedDefaultData() {
     ['registration_enabled',        'true',  'Allow new user registrations'],
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
+    ['news_content',                '', 'News/announcement block shown on landing page'],
   ];
 
   const insertSetting = db.prepare('INSERT OR IGNORE INTO admin_settings (key, value, description) VALUES (?, ?, ?)');

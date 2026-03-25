@@ -24,6 +24,7 @@ async function build() {
         fontSrc: ["'self'", 'fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:'],
         connectSrc: ["'self'"],
+        scriptSrcAttr: false,
       },
     },
   });
@@ -102,7 +103,11 @@ async function build() {
   // ── Routes ────────────────────────────────────────────────────────────────
   fastify.get('/', async (req, reply) => {
     if (req.user) return reply.redirect('/dashboard');
-    return reply.redirect('/auth/login');
+    const db = getDb();
+    const tiers = db.prepare("SELECT * FROM tiers ORDER BY sort_order").all();
+    const newsContent = getSetting('news_content') || '';
+    const registrationEnabled = getSetting('registration_enabled') !== 'false';
+    return reply.view('landing.njk', { title: 'Dynamic DNS for Everyone', tiers, newsContent, registrationEnabled });
   });
 
   await fastify.register(require('./routes/auth'));
