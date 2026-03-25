@@ -160,6 +160,16 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS oauth_accounts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  provider TEXT NOT NULL,
+  provider_user_id TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(provider, provider_user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_ddns_records_zone_sub ON ddns_records(zone_id, subdomain);
 CREATE INDEX IF NOT EXISTS idx_ddns_records_user ON ddns_records(user_id);

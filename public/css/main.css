@@ -281,6 +281,23 @@ a:hover { text-decoration: underline; }
   margin-top: 16px;
 }
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-google:hover { background: #f9fafb; border-color: #9ca3af; }
 
 /* ── Forms ───────────────────────────────────────────────────────────────── */
 .form-group { display: flex; flex-direction: column; gap: 5px; }

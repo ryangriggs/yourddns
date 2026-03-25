@@ -128,7 +128,7 @@ module.exports = async function authRoutes(fastify) {
     if (!email) return reply.redirect('/auth/forgot-password?error=missing');
     const db = getDb();
     const user = db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE').get(email.trim());
-    if (user && user.email_verified) {
+    if (user && user.email_verified && user.password_hash) {
       const token = crypto.randomBytes(32).toString('hex');
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
       const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -257,5 +257,111 @@ module.exports = async function authRoutes(fastify) {
   fastify.post('/auth/logout', async (req, reply) => {
     await req.session.destroy();
     return reply.redirect('/auth/login');
+  });
+
+  // ── Google OAuth ───────────────────────────────────────────────────────────
+
+  // GET /auth/google
+  fastify.get('/auth/google', async (req, reply) => {
+    if (!process.env.GOOGLE_CLIENT_ID) return reply.redirect('/auth/login?error=oauth_unavailable');
+    const state = crypto.randomBytes(16).toString('hex');
+    req.session.oauthState = state;
+    const siteUrl = getSetting('site_url') || '';
+    const params = new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID,
+      redirect_uri: `${siteUrl}/auth/google/callback`,
+      response_type: 'code',
+      scope: 'openid email',
+      state,
+      prompt: 'select_account',
+    });
+    return reply.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  });
+
+  // GET /auth/google/callback
+  fastify.get('/auth/google/callback', async (req, reply) => {
+    const { code, state, error } = req.query || {};
+    if (error || !code) return reply.redirect('/auth/login?error=oauth_failed');
+    if (!state || state !== req.session.oauthState) return reply.redirect('/auth/login?error=oauth_failed');
+    delete req.session.oauthState;
+
+    const siteUrl = getSetting('site_url') || '';
+
+    // Exchange code for tokens
+    let tokenData;
+    try {
+      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET,
+          redirect_uri: `${siteUrl}/auth/google/callback`,
+          grant_type: 'authorization_code',
+        }),
+      });
+      tokenData = await tokenRes.json();
+    } catch (e) {
+      return reply.redirect('/auth/login?error=oauth_failed');
+    }
+    if (!tokenData.access_token) return reply.redirect('/auth/login?error=oauth_failed');
+
+    // Fetch user info
+    let userInfo;
+    try {
+      const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      userInfo = await userInfoRes.json();
+    } catch (e) {
+      return reply.redirect('/auth/login?error=oauth_failed');
+    }
+    if (!userInfo.email || !userInfo.email_verified) return reply.redirect('/auth/login?error=oauth_email');
+
+    const db = getDb();
+    const clientIp = req.ip;
+    if (db.prepare('SELECT id FROM blocked_ips WHERE ip_address = ?').get(clientIp)) {
+      return reply.redirect('/auth/login?error=blocked');
+    }
+
+    const googleId = String(userInfo.sub);
+    const email = userInfo.email.toLowerCase();
+
+    // Check if this Google account is already linked
+    const oauthAccount = db.prepare('SELECT * FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?').get('google', googleId);
+    if (oauthAccount) {
+      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(oauthAccount.user_id);
+      if (!user || user.is_disabled) return reply.redirect('/auth/login?error=disabled');
+      req.session.userId = user.id;
+      delete req.session.impersonatingUserId;
+      const dest = req.session.returnTo || '/dashboard';
+      delete req.session.returnTo;
+      return reply.redirect(dest);
+    }
+
+    // Look up existing user by email
+    let user = db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE').get(email);
+    if (user) {
+      if (user.is_disabled) return reply.redirect('/auth/login?error=disabled');
+      // Link Google to existing account
+      db.prepare('INSERT OR IGNORE INTO oauth_accounts (user_id, provider, provider_user_id) VALUES (?, ?, ?)').run(user.id, 'google', googleId);
+      if (!user.email_verified) {
+        db.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').run(user.id);
+      }
+    } else {
+      // New user — check registration is open
+      if (getSetting('registration_enabled') === 'false') return reply.redirect('/auth/login?error=registration_disabled');
+      const freeTier = db.prepare("SELECT id FROM tiers WHERE name = 'free'").get();
+      const result = db.prepare('INSERT INTO users (email, email_verified, tier_id) VALUES (?, 1, ?)').run(email, freeTier ? freeTier.id : 1);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(Number(result.lastInsertRowid));
+      db.prepare('INSERT INTO oauth_accounts (user_id, provider, provider_user_id) VALUES (?, ?, ?)').run(user.id, 'google', googleId);
+    }
+
+    req.session.userId = user.id;
+    delete req.session.impersonatingUserId;
+    const dest = req.session.returnTo || '/dashboard';
+    delete req.session.returnTo;
+    return reply.redirect(dest);
   });
 };

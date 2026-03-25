@@ -232,11 +232,15 @@ module.exports = async function dashboardRoutes(fastify) {
   fastify.get('/dashboard/profile', async (req, reply) => {
     const db = getDb();
     const tiers = db.prepare('SELECT * FROM tiers ORDER BY sort_order').all();
+    const oauthAccounts = db.prepare('SELECT provider FROM oauth_accounts WHERE user_id = ?').all(req.user.id);
+    const linkedProviders = new Set(oauthAccounts.map(a => a.provider));
     const flash = req.session.flash;
     delete req.session.flash;
     return reply.view('dashboard/profile.njk', {
       title: 'Profile',
       tiers,
+      linkedProviders: [...linkedProviders],
+      googleEnabled: !!process.env.GOOGLE_CLIENT_ID,
       flash,
     });
   });
@@ -281,6 +285,49 @@ module.exports = async function dashboardRoutes(fastify) {
     const hash = await bcrypt.hash(new_password, 12);
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, user.id);
     req.session.flash = { type: 'success', message: 'Password updated.' };
+    return reply.redirect('/dashboard/profile');
+  });
+
+  // POST /dashboard/profile/set-password  (OAuth users with no password yet)
+  fastify.post('/dashboard/profile/set-password', async (req, reply) => {
+    const bcrypt = require('bcryptjs');
+    const { new_password, new_password2 } = req.body || {};
+    req.session.flash = null;
+    const db = getDb();
+    const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    if (user.password_hash) {
+      // Already has a password — use change-password instead
+      req.session.flash = { type: 'error', message: 'Use the change password form.' };
+      return reply.redirect('/dashboard/profile');
+    }
+    if (!new_password) {
+      req.session.flash = { type: 'error', message: 'Password is required.' };
+      return reply.redirect('/dashboard/profile');
+    }
+    if (new_password !== new_password2) {
+      req.session.flash = { type: 'error', message: 'Passwords do not match.' };
+      return reply.redirect('/dashboard/profile');
+    }
+    if (new_password.length < 8) {
+      req.session.flash = { type: 'error', message: 'Password must be at least 8 characters.' };
+      return reply.redirect('/dashboard/profile');
+    }
+    const hash = await bcrypt.hash(new_password, 12);
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.user.id);
+    req.session.flash = { type: 'success', message: 'Password set. You can now sign in with email and password.' };
+    return reply.redirect('/dashboard/profile');
+  });
+
+  // POST /dashboard/profile/unlink-google
+  fastify.post('/dashboard/profile/unlink-google', async (req, reply) => {
+    const db = getDb();
+    const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    if (!user.password_hash) {
+      req.session.flash = { type: 'error', message: 'Set a password before unlinking Google.' };
+      return reply.redirect('/dashboard/profile');
+    }
+    db.prepare("DELETE FROM oauth_accounts WHERE user_id = ? AND provider = 'google'").run(req.user.id);
+    req.session.flash = { type: 'success', message: 'Google account unlinked.' };
     return reply.redirect('/dashboard/profile');
   });
 };
