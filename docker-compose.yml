@@ -11,12 +11,6 @@ services:
       - "5300:53/tcp"
     expose:
       - "3000"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/status"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
     networks:
       - yourddns
 
@@ -33,8 +27,7 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
       - /var/www/certbot:/var/www/certbot:ro
     depends_on:
-      app:
-        condition: service_healthy
+      - app
     networks:
       - yourddns
 

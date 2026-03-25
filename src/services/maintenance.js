@@ -53,7 +53,7 @@ function pruneOldHits() {
 function startMaintenanceJob() {
   // Run immediately then every hour
   pruneOldHits();
-  setInterval(pruneOldHits, 60 * 60 * 1000);
+  setInterval(pruneOldHits, 60 * 60 * 1000).unref();
   console.log('[maintenance] Scheduled hourly cleanup');
 }
 

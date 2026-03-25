@@ -150,14 +150,7 @@ start().catch(err => {
   process.exit(1);
 });
 
-process.on('SIGTERM', async () => {
-  console.log('[app] SIGTERM received, shutting down gracefully...');
-  try {
-    const { stopDnsServer } = require('./dns-server');
-    stopDnsServer();
-    process.exit(0);
-  } catch (err) {
-    console.error('[app] Shutdown error:', err.message);
-    process.exit(1);
-  }
+process.on('SIGTERM', () => {
+  console.log('[app] SIGTERM received, exiting');
+  process.exit(0);
 });
