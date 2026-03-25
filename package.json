@@ -27,6 +27,6 @@
     "fastify-plugin": "^4.5.1"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=18.0.0"
   }
 }
