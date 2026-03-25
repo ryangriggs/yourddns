@@ -15,7 +15,7 @@
   <header class="app-header">
     <div class="header-inner">
       <div class="header-left">
-        <a href="/dashboard" class="logo">{{ siteName }}</a>
+        <a href="/" class="logo">{{ siteName }}</a>
         <nav class="header-nav">
           <a href="/dashboard" class="nav-link {% if activePage == 'dashboard' %}active{% endif %}">Records</a>
           <a href="/reports" class="nav-link {% if activePage == 'reports' %}active{% endif %}">Reports</a>
@@ -55,7 +55,7 @@
   <div class="mobile-menu-backdrop" id="mobileMenuBackdrop"></div>
   <div class="mobile-menu" id="mobileMenu">
     <div class="mobile-menu-head">
-      <span class="logo">{{ siteName }}</span>
+      <a href="/" class="logo" style="text-decoration:none">{{ siteName }}</a>
       <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>

@@ -4,8 +4,8 @@
 <!-- Hero -->
 <section class="landing-hero">
   <div class="landing-container">
-    <h1 class="landing-hero-title">Dynamic DNS,<br>self-hosted and simple</h1>
-    <p class="landing-hero-sub">Keep your home server, NAS, or IoT devices reachable with a stable hostname — even when your IP changes. No lock-in, no proprietary clients.</p>
+    <h1 class="landing-hero-title">Your hostname,<br>always reachable</h1>
+    <p class="landing-hero-sub">Point a stable domain name at your home server, lab, or device — even when your IP changes. Update it from a script, a cron job, or your router in one API call.</p>
     {% if registrationEnabled %}
     <a href="/auth/register" class="btn btn-primary btn-lg">Get Started Free</a>
     {% else %}
@@ -17,49 +17,49 @@
 <!-- Features -->
 <section class="landing-section">
   <div class="landing-container">
-    <h2 class="landing-section-title">Everything you need</h2>
+    <h2 class="landing-section-title">Built for developers</h2>
     <div class="landing-features">
+      <div class="landing-feature">
+        <div class="landing-feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+        </div>
+        <h3>Simple API</h3>
+        <p>One GET request updates your IP. Works from any language, shell script, router firmware, or cron job — no client software required.</p>
+      </div>
       <div class="landing-feature">
         <div class="landing-feature-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
         </div>
-        <h3>Authoritative DNS</h3>
-        <p>Full authoritative DNS server — delegate a zone to your server and manage all records from one dashboard.</p>
+        <h3>IPv4 &amp; IPv6</h3>
+        <p>Manage A and AAAA records independently. Auto-detect your address from the connecting interface, or set both explicitly in one call.</p>
       </div>
       <div class="landing-feature">
         <div class="landing-feature-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
         </div>
-        <h3>Secure API Keys</h3>
-        <p>Each record gets its own Personal Access Token. Update your IP from any script, cron job, or router.</p>
-      </div>
-      <div class="landing-feature">
-        <div class="landing-feature-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-        </div>
-        <h3>Multi-user</h3>
-        <p>Full account system with email verification, OTP login, and an admin panel for user management.</p>
-      </div>
-      <div class="landing-feature">
-        <div class="landing-feature-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-        <h3>Hit Tracking</h3>
-        <p>See how often your records are queried. Reports tab shows per-record resolution charts over any date range.</p>
-      </div>
-      <div class="landing-feature">
-        <div class="landing-feature-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        </div>
-        <h3>Multiple Zones</h3>
-        <p>Host multiple DNS zones from one server. Restrict zones to specific plans or open them to all users.</p>
+        <h3>Per-record API Keys</h3>
+        <p>Each hostname gets its own token. Rotate a key for one record without touching the others. Regenerate any time from the dashboard.</p>
       </div>
       <div class="landing-feature">
         <div class="landing-feature-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
         </div>
-        <h3>Docker Ready</h3>
-        <p>One <code>docker compose up</code> and you're running. SQLite database, no external dependencies.</p>
+        <h3>Bring Your Own Domain</h3>
+        <p>Use a subdomain under our shared zones, or delegate your own domain. Add NS records at your registrar and we handle the rest.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="landing-feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <h3>Resolution History</h3>
+        <p>Track how often each hostname is looked up. Per-record charts over any date range — useful for debugging and monitoring.</p>
+      </div>
+      <div class="landing-feature">
+        <div class="landing-feature-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        </div>
+        <h3>Low TTL Support</h3>
+        <p>Need fast failover? Higher plans support TTLs down to a few seconds so DNS catches up quickly when your IP changes.</p>
       </div>
     </div>
   </div>
@@ -81,7 +81,7 @@
 <section class="landing-section {% if not newsContent %}landing-section-alt{% endif %}">
   <div class="landing-container">
     <h2 class="landing-section-title">Simple pricing</h2>
-    <p class="landing-section-sub">All plans include the same core features. Upgrade for more records, lower TTLs, and longer history.</p>
+    <p class="landing-section-sub">Start free. Upgrade when you need more records, faster TTLs, or your own domain.</p>
     <div class="landing-pricing">
       {% for tier in tiers %}
       <div class="pricing-card {% if loop.index == 2 %}pricing-card-featured{% endif %}">
@@ -95,11 +95,14 @@
           {% endif %}
         </div>
         <ul class="pricing-features">
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.max_entries }} DNS records</li>
+          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.max_entries }} hostnames</li>
           <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.min_ttl }}s minimum TTL</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.max_resolutions_per_hour | round }} resolutions/hr</li>
+          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.max_resolutions_per_hour | round }} lookups/hr</li>
           <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.max_updates_per_hour }} updates/hr</li>
-          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.history_days }} days history</li>
+          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.history_days }}-day history</li>
+          {% if tier.max_custom_domains > 0 %}
+          <li><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> {{ tier.max_custom_domains }} custom domain{% if tier.max_custom_domains != 1 %}s{% endif %}</li>
+          {% endif %}
         </ul>
         {% if registrationEnabled %}
         <a href="/auth/register" class="btn {% if loop.index == 2 %}btn-primary{% else %}btn-outline{% endif %} w-full">Get started</a>
