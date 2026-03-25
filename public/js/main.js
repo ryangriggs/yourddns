@@ -43,7 +43,13 @@ function toggleRowMenu(id) {
   if (!menu) return;
   const isOpen = menu.classList.contains('open');
   document.querySelectorAll('.row-dropdown.open').forEach(el => el.classList.remove('open'));
-  if (!isOpen) menu.classList.add('open');
+  if (!isOpen) {
+    const btn = event.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    menu.style.top = (rect.bottom + 4) + 'px';
+    menu.style.right = (window.innerWidth - rect.right) + 'px';
+    menu.classList.add('open');
+  }
   event.stopPropagation();
 }
 document.addEventListener('click', () => {

@@ -49,13 +49,14 @@ module.exports = async function dashboardRoutes(fastify) {
       tier,
       flash,
       newPat,
+      clientIp: req.ip,
     });
   });
 
   // POST /dashboard/records  — create
   fastify.post('/dashboard/records', async (req, reply) => {
     const db = getDb();
-    const { subdomain, zone_id, ttl } = req.body || {};
+    const { subdomain, zone_id, ttl, ip } = req.body || {};
 
     // Clear session flash
     req.session.flash = null;
@@ -109,7 +110,8 @@ module.exports = async function dashboardRoutes(fastify) {
     const pat = generatePat();
     const patHash = hashPat(pat);
 
-    db.prepare('INSERT INTO ddns_records (user_id, zone_id, subdomain, ttl, pat_hash) VALUES (?, ?, ?, ?, ?)').run(req.user.id, zone_id, sub, resolvedTtl, patHash);
+    const ipVal = (ip && ip.trim()) ? ip.trim() : null;
+    db.prepare('INSERT INTO ddns_records (user_id, zone_id, subdomain, ttl, pat_hash, ip_address) VALUES (?, ?, ?, ?, ?, ?)').run(req.user.id, zone_id, sub, resolvedTtl, patHash, ipVal);
 
     req.session.newPat = { subdomain: sub, zone: zone.domain, pat };
     req.session.flash = { type: 'success', message: 'Record created. Save your API key — it will only be shown once.' };

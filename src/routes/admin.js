@@ -251,7 +251,11 @@ module.exports = async function adminRoutes(fastify) {
 
   fastify.get('/admin/settings', async (req, reply) => {
     const settings = getAllSettings();
-    const tiers = getDb().prepare('SELECT * FROM tiers ORDER BY sort_order').all();
+    const tiers = getDb().prepare(`
+      SELECT t.*, COUNT(u.id) as user_count
+      FROM tiers t LEFT JOIN users u ON u.tier_id = t.id
+      GROUP BY t.id ORDER BY t.sort_order
+    `).all();
     return reply.view('admin/settings.njk', { title: 'Settings', settings, tiers, flash: flash(req) });
   });
 
@@ -279,6 +283,18 @@ module.exports = async function adminRoutes(fastify) {
       db.prepare(`INSERT INTO tiers (name,display_name,max_entries,min_ttl,max_resolutions_per_hour,max_updates_per_hour,min_subdomain_length,history_days,price_monthly,stripe_price_id,sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(name,display_name,max_entries||3,min_ttl||300,max_resolutions_per_hour||1000,max_updates_per_hour||10,min_subdomain_length||4,history_days||7,price_monthly||0,stripe_price_id||null,sort_order||0);
     }
     req.session.flash = { type: 'success', message: 'Tier saved.' };
+    return reply.redirect('/admin/settings');
+  });
+
+  fastify.post('/admin/tiers/:id/delete', async (req, reply) => {
+    const db = getDb();
+    const row = db.prepare('SELECT COUNT(*) as c FROM users WHERE tier_id = ?').get(req.params.id);
+    if (row.c > 0) {
+      req.session.flash = { type: 'error', message: `Cannot delete tier: ${row.c} user(s) are on this plan.` };
+      return reply.redirect('/admin/settings');
+    }
+    db.prepare('DELETE FROM tiers WHERE id = ?').run(req.params.id);
+    req.session.flash = { type: 'success', message: 'Tier deleted.' };
     return reply.redirect('/admin/settings');
   });
 

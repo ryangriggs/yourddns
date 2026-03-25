@@ -77,35 +77,45 @@
 
     <button type="submit" class="btn btn-primary">Save Settings</button>
   </form>
+</div>
 
-  <!-- Tier Management -->
-  <div class="mt-6">
-    <div class="page-header">
-      <h2 class="page-title">Plans / Tiers</h2>
-      <button class="btn btn-primary" onclick="openModal('addTierModal')">+ Add Tier</button>
-    </div>
-    <div class="table-card">
-      <table class="table">
-        <thead>
-          <tr><th>Name</th><th>Entries</th><th>Min TTL</th><th>Res/hr</th><th>Updates/hr</th><th>Min Sub Len</th><th>History</th><th>Price/mo</th><th></th></tr>
-        </thead>
-        <tbody>
-          {% for tier in tiers %}
-          <tr>
-            <td><strong>{{ tier.display_name }}</strong><br><span class="text-muted text-xs">{{ tier.name }}</span></td>
-            <td>{{ tier.max_entries }}</td>
-            <td>{{ tier.min_ttl }}s</td>
-            <td>{{ tier.max_resolutions_per_hour }}</td>
-            <td>{{ tier.max_updates_per_hour }}</td>
-            <td>{{ tier.min_subdomain_length }}</td>
-            <td>{{ tier.history_days }}d</td>
-            <td>{% if tier.price_monthly == 0 %}Free{% else %}${{ (tier.price_monthly / 100) | round(2) }}{% endif %}</td>
-            <td><button class="btn btn-xs btn-outline" onclick="openEditTier({{ tier | json }})">Edit</button></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+<!-- Tier Management — full width -->
+<div class="page-container mt-6">
+  <div class="page-header">
+    <h2 class="page-title">Plans / Tiers</h2>
+    <button class="btn btn-primary" onclick="openModal('addTierModal')">+ Add Tier</button>
+  </div>
+  <div class="table-card">
+    <table class="table">
+      <thead>
+        <tr><th>Name</th><th>Users</th><th>Entries</th><th>Min TTL</th><th>Res/hr</th><th>Updates/hr</th><th>Min Sub Len</th><th>History</th><th>Price/mo</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for tier in tiers %}
+        <tr>
+          <td><strong>{{ tier.display_name }}</strong><br><span class="text-muted text-xs">{{ tier.name }}</span></td>
+          <td>{{ tier.user_count }}</td>
+          <td>{{ tier.max_entries }}</td>
+          <td>{{ tier.min_ttl }}s</td>
+          <td>{{ tier.max_resolutions_per_hour }}</td>
+          <td>{{ tier.max_updates_per_hour }}</td>
+          <td>{{ tier.min_subdomain_length }}</td>
+          <td>{{ tier.history_days }}d</td>
+          <td>{% if tier.price_monthly == 0 %}Free{% else %}${{ (tier.price_monthly / 100) | round(2) }}{% endif %}</td>
+          <td class="actions-cell">
+            <button class="btn btn-xs btn-outline" onclick="openEditTier({{ tier.id }})">Edit</button>
+            {% if tier.user_count == 0 %}
+            <form method="post" action="/admin/tiers/{{ tier.id }}/delete" style="display:inline" onsubmit="return confirm('Delete tier {{ tier.display_name }}?')">
+              <button type="submit" class="btn btn-xs btn-danger">Delete</button>
+            </form>
+            {% else %}
+            <button class="btn btn-xs btn-outline" disabled title="{{ tier.user_count }} user(s) on this plan">Delete</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
@@ -151,7 +161,11 @@
 
 {% block scripts %}
 <script>
-function openEditTier(tier) {
+const tiersData = {};
+{{ tiers | json }}.forEach(t => tiersData[t.id] = t);
+
+function openEditTier(id) {
+  const tier = tiersData[id];
   const form = document.getElementById('editTierForm');
   document.getElementById('editTierId').value = tier.id;
   form.querySelector('[name=display_name]').value = tier.display_name;

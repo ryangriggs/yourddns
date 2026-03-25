@@ -82,18 +82,3 @@ GET {{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&ip=1.2.3.4</pre>
   </div>
 </div>
 
-<script>
-function showTab(name) {
-  document.querySelectorAll('.setup-tab').forEach((t,i) => t.classList.remove('active'));
-  document.querySelectorAll('.setup-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
-  event.target.classList.add('active');
-}
-function copyCode(btn) {
-  const pre = btn.nextElementSibling;
-  navigator.clipboard.writeText(pre.textContent).then(() => {
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-  });
-}
-</script>

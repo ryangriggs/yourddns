@@ -22,7 +22,7 @@
         </div>
         <div class="flex gap-2">
           <span class="badge {% if zone.is_active %}badge-green{% else %}badge-gray{% endif %}">{{ 'Active' if zone.is_active else 'Inactive' }}</span>
-          <button class="btn btn-sm btn-outline" onclick="openEditZone({{ zone | json }})">Edit</button>
+          <button class="btn btn-sm btn-outline" onclick="openEditZone({{ zone.id }})">Edit</button>
           <form method="post" action="/admin/domains/{{ zone.id }}/delete" onsubmit="return confirm('Delete zone {{ zone.domain }}? All DDNS records in this zone will also be deleted.')">
             <button type="submit" class="btn btn-sm btn-danger">Delete</button>
           </form>
@@ -156,8 +156,11 @@
 {% block scripts %}
 <script>
 const tiers = {{ tiers | json }};
+const zonesData = {};
+{{ zones | json }}.forEach(z => zonesData[z.id] = z);
 
-function openEditZone(zone) {
+function openEditZone(id) {
+  const zone = zonesData[id];
   const nsList = JSON.parse(zone.ns_hostnames || '[]');
   const form = document.getElementById('editZoneForm');
   form.action = '/admin/domains/' + zone.id + '/update';

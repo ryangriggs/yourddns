@@ -166,15 +166,13 @@ a:hover { text-decoration: underline; }
 
 .row-dropdown {
   display: none;
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
+  position: fixed;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   min-width: 160px;
-  z-index: 200;
+  z-index: 1000;
   overflow: hidden;
 }
 .row-dropdown.open { display: block; }

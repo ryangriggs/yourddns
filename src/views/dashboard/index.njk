@@ -127,6 +127,12 @@
         </select>
       </div>
       <div class="form-group">
+        <label class="form-label" for="ip">IP Address <span class="text-muted">(optional)</span></label>
+        <input type="text" id="ip" name="ip" class="form-input" value="{{ clientIp }}"
+          placeholder="Leave blank to set on first update">
+        <p class="form-hint">Defaults to your current IP. Clear to leave unset until the first API update.</p>
+      </div>
+      <div class="form-group">
         <label class="form-label" for="ttl">TTL (seconds)</label>
         <input type="number" id="ttl" name="ttl" class="form-input" value="{{ tier.min_ttl }}" min="{{ tier.min_ttl }}" step="60">
         <p class="form-hint">Minimum {{ tier.min_ttl }}s on your plan.</p>
@@ -179,6 +185,19 @@
 
 {% block scripts %}
 <script>
+function showTab(name) {
+  document.querySelectorAll('.setup-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.setup-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+function copyCode(btn) {
+  const pre = btn.nextElementSibling;
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
 function openSetup(id) {
   openModal('setupModal');
   document.getElementById('setupContent').innerHTML = '<div class="loading-spin"></div>';
