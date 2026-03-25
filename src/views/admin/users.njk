@@ -16,6 +16,7 @@
           <th>Email</th>
           <th>Plan</th>
           <th>Records</th>
+          <th>Custom Domains</th>
           <th>Verified</th>
           <th>Status</th>
           <th>Created</th>
@@ -41,6 +42,13 @@
             </form>
           </td>
           <td>{{ u.record_count }}</td>
+          <td>
+            {% if u.custom_domain_count > 0 %}
+            <a href="/admin/users/{{ u.id }}/custom-domains">{{ u.custom_domain_count }}</a>
+            {% else %}
+            0
+            {% endif %}
+          </td>
           <td>
             <span class="badge {% if u.email_verified %}badge-green{% else %}badge-gray{% endif %}">
               {{ 'Yes' if u.email_verified else 'No' }}
@@ -80,6 +88,7 @@
                 </form>
                 {% endif %}
                 <button class="dropdown-item" onclick="openSetPassword({{ u.id }}, '{{ u.email | escape }}')">Set password</button>
+                <a href="/admin/users/{{ u.id }}/custom-domains" class="dropdown-item">Custom Domains</a>
                 <div class="dropdown-divider"></div>
                 <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Delete user {{ u.email | escape }}? This will also delete all their records.')">
                   <button type="submit" class="dropdown-item text-danger">Delete</button>

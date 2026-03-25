@@ -21,12 +21,40 @@ module.exports = async function adminRoutes(fastify) {
     const db = getDb();
     const users = db.prepare(`
       SELECT u.*, t.display_name as tier_name,
-        (SELECT COUNT(*) FROM ddns_records WHERE user_id = u.id) as record_count
+        (SELECT COUNT(*) FROM ddns_records WHERE user_id = u.id) as record_count,
+        (SELECT COUNT(*) FROM zones WHERE user_id = u.id) as custom_domain_count
       FROM users u JOIN tiers t ON t.id = u.tier_id
       ORDER BY u.created_at DESC
     `).all();
     const tiers = db.prepare('SELECT * FROM tiers ORDER BY sort_order').all();
     return reply.view('admin/users.njk', { title: 'Users', users, tiers, flash: flash(req) });
+  });
+
+  fastify.get('/admin/users/:id/custom-domains', async (req, reply) => {
+    const db = getDb();
+    const target = db.prepare('SELECT id, email FROM users WHERE id = ?').get(req.params.id);
+    if (!target) {
+      req.session.flash = { type: 'error', message: 'User not found.' };
+      return reply.redirect('/admin/users');
+    }
+    const zones = db.prepare(`
+      SELECT z.*,
+        (SELECT COUNT(*) FROM ddns_records WHERE zone_id = z.id) as record_count
+      FROM zones z WHERE z.user_id = ? ORDER BY z.domain
+    `).all(req.params.id);
+    return reply.view('admin/user-custom-domains.njk', {
+      title: `Custom Domains — ${target.email}`,
+      target,
+      zones,
+      flash: flash(req),
+    });
+  });
+
+  fastify.post('/admin/users/:id/custom-domains/:zoneId/delete', async (req, reply) => {
+    const db = getDb();
+    db.prepare('DELETE FROM zones WHERE id = ? AND user_id = ?').run(req.params.zoneId, req.params.id);
+    req.session.flash = { type: 'success', message: 'Zone deleted.' };
+    return reply.redirect(`/admin/users/${req.params.id}/custom-domains`);
   });
 
   fastify.post('/admin/users/:id/disable', async (req, reply) => {
@@ -104,7 +132,7 @@ module.exports = async function adminRoutes(fastify) {
       SELECT z.*,
         (SELECT COUNT(*) FROM ddns_records WHERE zone_id = z.id) as record_count,
         (SELECT GROUP_CONCAT(tier_id) FROM zone_tiers WHERE zone_id = z.id) as tier_ids
-      FROM zones z ORDER BY z.domain
+      FROM zones z WHERE z.user_id IS NULL ORDER BY z.domain
     `).all();
     const tiers = db.prepare('SELECT * FROM tiers ORDER BY sort_order').all();
     // Attach static records per zone

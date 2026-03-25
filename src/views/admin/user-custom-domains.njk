@@ -1,0 +1,60 @@
+{% extends "layouts/admin.njk" %}
+{% set activePage = 'users' %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Custom Domains</h1>
+      <p class="text-muted">{{ target.email }}</p>
+    </div>
+    <a href="/admin/users" class="btn btn-outline">← Back to Users</a>
+  </div>
+
+  {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  {% if zones | length == 0 %}
+  <div class="empty-state">
+    <h3>No custom domains</h3>
+    <p>This user has not added any custom domains.</p>
+  </div>
+  {% else %}
+  <div class="table-card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Domain</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Records</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for zone in zones %}
+        <tr>
+          <td><strong>{{ zone.domain }}</strong></td>
+          <td><span class="badge badge-gray">{{ zone.zone_type }}</span></td>
+          <td>
+            {% if zone.validated %}
+            <span class="badge badge-green">Active</span>
+            {% else %}
+            <span class="badge badge-yellow">Pending</span>
+            {% endif %}
+          </td>
+          <td>{{ zone.record_count }}</td>
+          <td class="text-muted">{{ zone.created_at | date }}</td>
+          <td class="actions-cell">
+            <form method="post" action="/admin/users/{{ target.id }}/custom-domains/{{ zone.id }}/delete"
+              onsubmit="return confirm('Delete zone {{ zone.domain }}? All DDNS records in this zone will also be deleted.')">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
