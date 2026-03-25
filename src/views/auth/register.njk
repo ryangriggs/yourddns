@@ -7,6 +7,7 @@
   </div>
 
   {% if error == 'missing' %}<div class="alert alert-error">All fields are required.</div>
+  {% elif error == 'terms' %}<div class="alert alert-error">You must agree to the Terms & Conditions.</div>
   {% elif error == 'password_mismatch' %}<div class="alert alert-error">Passwords do not match.</div>
   {% elif error == 'password_short' %}<div class="alert alert-error">Password must be at least 8 characters.</div>
   {% elif error == 'invalid_email' %}<div class="alert alert-error">Please enter a valid email address.</div>
@@ -26,6 +27,12 @@
     <div class="form-group">
       <label class="form-label" for="password2">Confirm Password</label>
       <input type="password" id="password2" name="password2" class="form-input" required placeholder="••••••••">
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="flex-direction:row;align-items:center;gap:8px;font-weight:400">
+        <input type="checkbox" name="agree_terms" value="1" required>
+        I agree to the <a href="/terms" target="_blank">Terms &amp; Conditions</a>
+      </label>
     </div>
     <button type="submit" class="btn btn-primary btn-full">Create account</button>
   </form>

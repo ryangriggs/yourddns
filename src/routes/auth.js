@@ -56,8 +56,9 @@ module.exports = async function authRoutes(fastify) {
     const regEnabled = getSetting('registration_enabled');
     if (regEnabled === 'false') return reply.redirect('/auth/login?error=registration_disabled');
 
-    const { email, password, password2 } = req.body || {};
+    const { email, password, password2, agree_terms } = req.body || {};
     if (!email || !password) return reply.redirect('/auth/register?error=missing');
+    if (!agree_terms) return reply.redirect('/auth/register?error=terms');
     if (password !== password2) return reply.redirect('/auth/register?error=password_mismatch');
     if (password.length < 8) return reply.redirect('/auth/register?error=password_short');
 

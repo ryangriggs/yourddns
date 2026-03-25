@@ -1,0 +1,57 @@
+{% extends "layouts/landing.njk" %}
+{% block content %}
+<div class="landing-container" style="max-width:740px;padding:48px 24px">
+  <h1 style="font-size:1.75rem;font-weight:700;color:#111827;margin-bottom:8px">Terms &amp; Conditions</h1>
+  <p style="color:#6b7280;font-size:0.875rem;margin-bottom:32px">Last updated: March 2026</p>
+
+  <div class="terms-body">
+    <h2>1. Acceptance of Terms</h2>
+    <p>By creating an account or using {{ siteName }} ("the Service"), you agree to be bound by these Terms &amp; Conditions. If you do not agree, do not use the Service.</p>
+
+    <h2>2. Description of Service</h2>
+    <p>{{ siteName }} provides dynamic DNS (DDNS) hosting, allowing you to associate a stable hostname with a dynamically changing IP address. The Service includes DNS record management, API access, and optional custom domain support.</p>
+
+    <h2>3. Account Responsibilities</h2>
+    <p>You are responsible for maintaining the security of your account credentials and API keys. You must not share your API keys publicly or use the Service in a way that could harm other users or the infrastructure.</p>
+
+    <h2>4. Acceptable Use</h2>
+    <p>You agree not to use the Service to:</p>
+    <ul>
+      <li>Host or distribute malware, phishing pages, or illegal content</li>
+      <li>Conduct denial-of-service attacks or abuse the DNS infrastructure</li>
+      <li>Violate any applicable local, national, or international laws</li>
+      <li>Circumvent rate limits or usage restrictions associated with your plan</li>
+    </ul>
+    <p>We reserve the right to suspend or terminate accounts that violate these terms without prior notice.</p>
+
+    <h2>5. Custom Domains</h2>
+    <p>When you delegate a domain to {{ siteName }}, you confirm that you are the legitimate registrant or authorized administrator of that domain. You remain responsible for any activity under that domain.</p>
+
+    <h2>6. Service Availability</h2>
+    <p>We aim to provide reliable uptime but do not guarantee uninterrupted service. The Service is provided "as is" without warranties of any kind. We are not liable for any damages arising from downtime, data loss, or DNS propagation delays.</p>
+
+    <h2>7. Data &amp; Privacy</h2>
+    <p>We collect and store only the information necessary to operate the Service, including your email address, IP addresses used to update DNS records, and DNS query logs. We do not sell your data to third parties. Query logs are retained for the duration specified by your plan.</p>
+
+    <h2>8. Plan Limits &amp; Billing</h2>
+    <p>Free plans are subject to the usage limits shown at signup. Paid plans are billed as described at the time of purchase. We reserve the right to change pricing with reasonable notice. Downgrading a plan does not entitle you to a refund for any unused period.</p>
+
+    <h2>9. Termination</h2>
+    <p>You may delete your account at any time. Upon deletion, all DNS records and custom zones associated with your account will be permanently removed. We may terminate accounts that violate these terms or that have been inactive for an extended period on a free plan.</p>
+
+    <h2>10. Changes to These Terms</h2>
+    <p>We may update these Terms from time to time. Continued use of the Service after changes are posted constitutes your acceptance of the revised Terms.</p>
+
+    <h2>11. Contact</h2>
+    <p>Questions about these Terms can be directed to <a href="mailto:{{ supportEmail }}">{{ supportEmail }}</a>.</p>
+  </div>
+</div>
+
+<style>
+.terms-body { color: #374151; line-height: 1.7; font-size: 0.9375rem; }
+.terms-body h2 { font-size: 1rem; font-weight: 600; color: #111827; margin: 28px 0 8px; }
+.terms-body p { margin: 0 0 12px; }
+.terms-body ul { margin: 0 0 12px 20px; display: flex; flex-direction: column; gap: 4px; }
+.terms-body a { color: #2563eb; }
+</style>
+{% endblock %}

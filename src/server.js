@@ -9,6 +9,7 @@ const fastify = require('fastify')({
 });
 const nunjucks = require('nunjucks');
 const { initDb, getDb, getSetting } = require('./db/index');
+const { version } = require('../package.json');
 const { startDnsServer } = require('./dns-server');
 const SQLiteSessionStore = require('./plugins/session-store');
 const { startMaintenanceJob } = require('./services/maintenance');
@@ -97,6 +98,7 @@ async function build() {
       user: req.user || null,
       siteName: getSetting('site_name') || 'YourDDNS',
       siteUrl: getSetting('site_url') || '',
+      appVersion: version,
     };
   });
 
@@ -143,6 +145,13 @@ async function build() {
     const newsContent = getSetting('news_content') || '';
     const registrationEnabled = getSetting('registration_enabled') !== 'false';
     return reply.view('landing.njk', { title: 'Dynamic DNS for Everyone', tiers, newsContent, registrationEnabled });
+  });
+
+  fastify.get('/terms', async (req, reply) => {
+    return reply.view('terms.njk', {
+      title: 'Terms & Conditions',
+      supportEmail: getSetting('support_email') || process.env.SUPPORT_EMAIL || '',
+    });
   });
 
   await fastify.register(require('./routes/auth'));
