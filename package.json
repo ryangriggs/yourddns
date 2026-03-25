@@ -17,7 +17,6 @@
     "@fastify/static": "^7.0.4",
     "@fastify/view": "^9.1.0",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^9.4.3",
     "dns2": "^2.1.0",
     "dotenv": "^16.4.5",
     "fastify": "^4.27.0",

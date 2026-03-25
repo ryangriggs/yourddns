@@ -1,6 +1,6 @@
 'use strict';
 
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
@@ -12,14 +12,26 @@ function getDb() {
   return db;
 }
 
+// Helper: run a function inside a BEGIN/COMMIT transaction
+function withTransaction(fn) {
+  db.exec('BEGIN');
+  try {
+    fn();
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
 async function initDb() {
   const dbPath = process.env.DB_PATH || './data/yourddns.db';
   const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-  db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  db = new DatabaseSync(dbPath);
+  db.exec('PRAGMA journal_mode=WAL');
+  db.exec('PRAGMA foreign_keys=ON');
 
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
@@ -38,27 +50,27 @@ async function seedDefaultData() {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  db.transaction(() => {
+  withTransaction(() => {
     insertTier.run('free',    'Free',    3,   300, 1000,  10, 4, 7,   0,    0);
     insertTier.run('starter', 'Starter', 10,  120, 5000,  30, 3, 30,  500,  1);
     insertTier.run('pro',     'Pro',     50,  60,  20000, 60, 2, 90,  1500, 2);
-  })();
+  });
 
   const settings = [
-    ['site_name',                   process.env.SITE_NAME || 'YourDDNS',          'Site display name'],
-    ['site_domain',                 process.env.SITE_DOMAIN || 'yourddns.com',    'Primary domain'],
+    ['site_name',                   process.env.SITE_NAME || 'YourDDNS',            'Site display name'],
+    ['site_domain',                 process.env.SITE_DOMAIN || 'yourddns.com',      'Primary domain'],
     ['site_url',                    process.env.SITE_URL || 'https://yourddns.com', 'Full site URL'],
     ['support_email',               process.env.SUPPORT_EMAIL || 'support@yourddns.com', 'Support email'],
-    ['otp_resend_interval_minutes', '30',   'Minutes between OTP sends per user'],
-    ['otp_max_attempts_per_hour',   '5',    'Max OTP code attempts per hour per user'],
+    ['otp_resend_interval_minutes', '30',    'Minutes between OTP sends per user'],
+    ['otp_max_attempts_per_hour',   '5',     'Max OTP code attempts per hour per user'],
     ['password_max_attempts_per_hour', '10', 'Max password login attempts per hour'],
-    ['registration_enabled',        'true', 'Allow new user registrations'],
+    ['registration_enabled',        'true',  'Allow new user registrations'],
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
   ];
 
   const insertSetting = db.prepare('INSERT OR IGNORE INTO admin_settings (key, value, description) VALUES (?, ?, ?)');
-  db.transaction(() => { for (const s of settings) insertSetting.run(...s); })();
+  withTransaction(() => { for (const s of settings) insertSetting.run(...s); });
 }
 
 async function bootstrapAdmin() {
@@ -91,7 +103,10 @@ function getAllSettings() {
 }
 
 function setSetting(key, value) {
-  db.prepare('INSERT OR REPLACE INTO admin_settings (key, value, description) VALUES (?, ?, COALESCE((SELECT description FROM admin_settings WHERE key = ?), \'\'))').run(key, value, key);
+  db.prepare(`
+    INSERT OR REPLACE INTO admin_settings (key, value, description)
+    VALUES (?, ?, COALESCE((SELECT description FROM admin_settings WHERE key = ?), ''))
+  `).run(key, value, key);
 }
 
 module.exports = { initDb, getDb, getSetting, getAllSettings, setSetting };

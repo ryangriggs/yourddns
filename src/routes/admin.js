@@ -128,7 +128,7 @@ module.exports = async function adminRoutes(fastify) {
       VALUES (?, ?, ?, ?, ?)
     `).run(domain.trim().toLowerCase(), display_name || domain, JSON.stringify(nsArray), soa_email || `hostmaster@${domain}`, parseInt(default_ttl || 300, 10));
 
-    const zoneId = r.lastInsertRowid;
+    const zoneId = Number(r.lastInsertRowid);
     const tIds = Array.isArray(tier_ids) ? tier_ids : (tier_ids ? [tier_ids] : []);
     const ins = db.prepare('INSERT OR IGNORE INTO zone_tiers (zone_id, tier_id) VALUES (?, ?)');
     db.transaction(() => { for (const t of tIds) ins.run(zoneId, t); })();

@@ -76,7 +76,7 @@ module.exports = async function authRoutes(fastify) {
     const hash = await bcrypt.hash(password, 12);
     const freeTier = db.prepare("SELECT id FROM tiers WHERE name = 'free'").get();
     const result = db.prepare('INSERT INTO users (email, password_hash, tier_id) VALUES (?, ?, ?)').run(email.trim().toLowerCase(), hash, freeTier ? freeTier.id : 1);
-    const userId = result.lastInsertRowid;
+    const userId = Number(result.lastInsertRowid);
 
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
