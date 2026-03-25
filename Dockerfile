@@ -3,7 +3,7 @@ FROM node:22-slim
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN --network=host npm ci --omit=dev
+RUN npm ci --omit=dev
 
 COPY . .
 
