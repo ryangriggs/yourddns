@@ -99,17 +99,18 @@ module.exports = async function zonesRoutes(fastify) {
       return reply.redirect('/dashboard/zones');
     }
 
-    // Block if already validated by someone else
-    const taken = db.prepare('SELECT id FROM zones WHERE LOWER(domain) = ? AND validated = 1 AND (user_id IS NULL OR user_id != ?)').get(domain, req.user.id);
-    if (taken) {
-      req.session.flash = { type: 'error', message: 'That domain is already in use.' };
-      return reply.redirect('/dashboard/zones');
-    }
-
-    // Check if user already has this pending
-    const existing = db.prepare('SELECT id FROM zones WHERE LOWER(domain) = ? AND user_id = ?').get(domain, req.user.id);
-    if (existing) {
-      req.session.flash = { type: 'error', message: 'You have already added that domain.' };
+    // Check if this domain already exists in any state
+    const existingZone = db.prepare('SELECT id, user_id, validated FROM zones WHERE LOWER(domain) = ?').get(domain);
+    if (existingZone) {
+      if (existingZone.user_id === req.user.id) {
+        // User already has it — redirect to it
+        return reply.redirect(`/dashboard/zones/${existingZone.id}`);
+      }
+      if (existingZone.validated || existingZone.user_id === null) {
+        req.session.flash = { type: 'error', message: 'That domain is already in use.' };
+      } else {
+        req.session.flash = { type: 'error', message: 'That domain is already pending validation by another user.' };
+      }
       return reply.redirect('/dashboard/zones');
     }
 

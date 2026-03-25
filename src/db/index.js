@@ -63,9 +63,10 @@ async function initDb() {
 
   // Ensure new settings exist on existing deployments (INSERT OR IGNORE — safe to always run)
   const ensureSettings = db.prepare('INSERT OR IGNORE INTO admin_settings (key, value, description) VALUES (?, ?, ?)');
-  ensureSettings.run('global_min_ttl', '1',                                                      'Global minimum TTL (seconds) — floor for all tiers');
-  ensureSettings.run('ns_primary',     process.env.NS_PRIMARY   || 'ns1.yourddns.com',           'Primary nameserver hostname');
-  ensureSettings.run('ns_secondary',   process.env.NS_SECONDARY || 'ns2.yourddns.com',           'Secondary nameserver hostname');
+  ensureSettings.run('global_min_ttl',                '1',                                             'Global minimum TTL (seconds) — floor for all tiers');
+  ensureSettings.run('ns_primary',                    process.env.NS_PRIMARY   || 'ns1.yourddns.com', 'Primary nameserver hostname');
+  ensureSettings.run('ns_secondary',                  process.env.NS_SECONDARY || 'ns2.yourddns.com', 'Secondary nameserver hostname');
+  ensureSettings.run('zone_validation_timeout_hours', '48',                                            'Hours before a pending custom domain is removed if not validated');
 
   await seedDefaultData();
   await bootstrapAdmin();

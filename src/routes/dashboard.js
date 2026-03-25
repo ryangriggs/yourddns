@@ -26,12 +26,14 @@ module.exports = async function dashboardRoutes(fastify) {
 
     const zones = db.prepare(`
       SELECT z.* FROM zones z
-      JOIN zone_tiers zt ON zt.zone_id = z.id
-      WHERE zt.tier_id = ? AND z.is_active = 1 AND z.validated = 1 AND z.user_id IS NULL
-      UNION
-      SELECT z.* FROM zones z
-      WHERE z.user_id = ? AND z.is_active = 1 AND z.validated = 1
-      ORDER BY domain
+      LEFT JOIN zone_tiers zt ON zt.zone_id = z.id AND zt.tier_id = ?
+      WHERE z.is_active = 1
+        AND z.validated = 1
+        AND (
+          (z.user_id IS NULL AND zt.zone_id IS NOT NULL)
+          OR z.user_id = ?
+        )
+      ORDER BY z.domain
     `).all(req.user.tier_id, req.user.id);
 
     const tier = {
@@ -77,12 +79,6 @@ module.exports = async function dashboardRoutes(fastify) {
       return reply.redirect('/dashboard');
     }
 
-    const minLen = req.user.min_subdomain_length || 4;
-    if (sub.length < minLen) {
-      req.session.flash = { type: 'error', message: `Subdomain must be at least ${minLen} characters.` };
-      return reply.redirect('/dashboard');
-    }
-
     // Check tier entry limit
     const count = db.prepare('SELECT COUNT(*) as c FROM ddns_records WHERE user_id = ?').get(req.user.id).c;
     if (count >= req.user.max_entries) {
@@ -90,15 +86,31 @@ module.exports = async function dashboardRoutes(fastify) {
       return reply.redirect('/dashboard');
     }
 
-    // Verify zone is accessible to user's tier
+    // Verify zone is accessible: either a tier-linked shared zone or the user's own validated custom zone
     const zone = db.prepare(`
       SELECT z.* FROM zones z
-      JOIN zone_tiers zt ON zt.zone_id = z.id
-      WHERE z.id = ? AND zt.tier_id = ? AND z.is_active = 1
-    `).get(zone_id, req.user.tier_id);
+      LEFT JOIN zone_tiers zt ON zt.zone_id = z.id AND zt.tier_id = ?
+      WHERE z.id = ?
+        AND z.is_active = 1
+        AND z.validated = 1
+        AND (
+          (z.user_id IS NULL AND zt.zone_id IS NOT NULL)
+          OR z.user_id = ?
+        )
+    `).get(req.user.tier_id, zone_id, req.user.id);
     if (!zone) {
       req.session.flash = { type: 'error', message: 'Zone not available for your plan.' };
       return reply.redirect('/dashboard');
+    }
+
+    // Min subdomain length: skipped for user's own custom zones
+    const isCustomZone = zone.user_id === req.user.id;
+    if (!isCustomZone) {
+      const minLen = req.user.min_subdomain_length || 4;
+      if (sub.length < minLen) {
+        req.session.flash = { type: 'error', message: `Subdomain must be at least ${minLen} characters.` };
+        return reply.redirect('/dashboard');
+      }
     }
 
     const globalMinTtl = parseInt(getSetting('global_min_ttl') || 1, 10);

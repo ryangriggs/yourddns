@@ -117,14 +117,14 @@
         <label class="form-label" for="subdomain">Subdomain</label>
         <input type="text" id="subdomain" name="subdomain" class="form-input" required
           placeholder="myhome" pattern="[a-zA-Z0-9-]+" minlength="{{ tier.min_subdomain_length }}"
-          title="Letters, numbers, and hyphens only. Min {{ tier.min_subdomain_length }} characters.">
-        <p class="form-hint">Min {{ tier.min_subdomain_length }} characters. Letters, numbers, hyphens only.</p>
+          title="Letters, numbers, and hyphens only.">
+        <p class="form-hint" id="subdomainHint">Min {{ tier.min_subdomain_length }} characters. Letters, numbers, hyphens only.</p>
       </div>
       <div class="form-group">
         <label class="form-label" for="zone_id">Zone</label>
-        <select id="zone_id" name="zone_id" class="form-select" required>
+        <select id="zone_id" name="zone_id" class="form-select" required onchange="updateSubdomainHint()">
           {% for zone in zones %}
-          <option value="{{ zone.id }}">{{ zone.domain }}</option>
+          <option value="{{ zone.id }}" data-custom="{{ 'true' if zone.user_id else 'false' }}">{{ zone.domain }}</option>
           {% endfor %}
         </select>
       </div>
@@ -220,6 +220,20 @@ function openEditRecord(id) {
   document.getElementById('editIp6').value = r.ip6 || '';
   document.getElementById('editTtl').value = r.ttl;
   openModal('editModal');
+}
+function updateSubdomainHint() {
+  const sel = document.getElementById('zone_id');
+  const opt = sel.options[sel.selectedIndex];
+  const input = document.getElementById('subdomain');
+  const hint = document.getElementById('subdomainHint');
+  const isCustom = opt && opt.dataset.custom === 'true';
+  if (isCustom) {
+    input.removeAttribute('minlength');
+    hint.textContent = 'Letters, numbers, hyphens only. No minimum length for your own domains.';
+  } else {
+    input.setAttribute('minlength', '{{ tier.min_subdomain_length }}');
+    hint.textContent = 'Min {{ tier.min_subdomain_length }} characters. Letters, numbers, hyphens only.';
+  }
 }
 function showTab(name) {
   document.querySelectorAll('.setup-tab').forEach(t => t.classList.remove('active'));

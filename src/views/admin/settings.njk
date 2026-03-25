@@ -79,6 +79,11 @@
             <p class="form-hint">e.g. ns2.yourddns.com</p>
           </div>
         </div>
+        <div class="form-group">
+          <label class="form-label">Custom domain validation timeout (hours)</label>
+          <input type="number" name="zone_validation_timeout_hours" class="form-input" value="{{ settings.zone_validation_timeout_hours.value }}" min="1" step="1">
+          <p class="form-hint">Pending custom domains not validated within this window are automatically removed. Default: 48.</p>
+        </div>
       </div>
     </div>
 

@@ -1,6 +1,6 @@
 'use strict';
 
-const { getDb } = require('../db/index');
+const { getDb, getSetting } = require('../db/index');
 
 /**
  * Prune old DNS hits and update logs based on each user's tier history_days setting.
@@ -44,6 +44,14 @@ function pruneOldHits() {
 
     // Clean up expired email verifications
     db.prepare("DELETE FROM email_verifications WHERE expires_at < datetime('now')").run();
+
+    // Remove pending custom domains that exceeded the validation timeout
+    const timeoutHours = parseInt(getSetting('zone_validation_timeout_hours') || '48', 10);
+    db.prepare(`
+      DELETE FROM zones
+      WHERE user_id IS NOT NULL AND validated = 0
+        AND created_at < datetime('now', '-' || ? || ' hours')
+    `).run(timeoutHours);
 
   } catch (err) {
     console.error('[maintenance] prune error:', err.message);

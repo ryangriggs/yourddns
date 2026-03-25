@@ -260,7 +260,7 @@ module.exports = async function adminRoutes(fastify) {
   });
 
   fastify.post('/admin/settings', async (req, reply) => {
-    const textFields = ['site_name','site_domain','site_url','support_email','otp_resend_interval_minutes','otp_max_attempts_per_hour','password_max_attempts_per_hour','stripe_publishable_key','news_content','global_min_ttl','ns_primary','ns_secondary'];
+    const textFields = ['site_name','site_domain','site_url','support_email','otp_resend_interval_minutes','otp_max_attempts_per_hour','password_max_attempts_per_hour','stripe_publishable_key','news_content','global_min_ttl','ns_primary','ns_secondary','zone_validation_timeout_hours'];
     const checkboxFields = ['registration_enabled','stripe_enabled'];
     for (const key of textFields) {
       if (req.body[key] !== undefined) setSetting(key, req.body[key]);
