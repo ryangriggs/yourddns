@@ -1,0 +1,117 @@
+{% extends "layouts/base.njk" %}
+{% set activePage = 'zones' %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">My Domains</h1>
+      <p class="page-subtitle">{{ zones | length }} / {{ tier.max_custom_domains }} custom domains used</p>
+    </div>
+    {% if tier.max_custom_domains > 0 and zones | length < tier.max_custom_domains %}
+    <button class="btn btn-primary" onclick="openModal('addZoneModal')">+ Add Domain</button>
+    {% endif %}
+  </div>
+
+  {% if flash %}
+  <div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>
+  {% endif %}
+
+  {% if tier.max_custom_domains == 0 %}
+  <div class="empty-state">
+    <h3>Custom domains not available</h3>
+    <p>Your current plan does not include custom domains. Upgrade to add your own domain or subdomain as a DDNS zone.</p>
+  </div>
+  {% elif zones | length == 0 %}
+  <div class="empty-state">
+    <h3>No custom domains yet</h3>
+    <p>Add your own domain or subdomain to use as a DDNS zone, private to your account.</p>
+    <button class="btn btn-primary" onclick="openModal('addZoneModal')">+ Add Domain</button>
+  </div>
+  {% else %}
+  <div class="table-card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Domain</th>
+          <th>Type</th>
+          <th>Records</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for zone in zones %}
+        <tr>
+          <td class="mono"><strong>{{ zone.domain }}</strong></td>
+          <td><span class="badge badge-blue">{{ 'Full Domain' if zone.zone_type == 'full' else 'Subdomain' }}</span></td>
+          <td class="text-muted">{{ zone.ddns_count }} DDNS, {{ zone.static_count }} static</td>
+          <td>
+            <span class="badge {% if zone.validated %}badge-green{% else %}badge-yellow{% endif %}">
+              {{ 'Active' if zone.validated else 'Pending Validation' }}
+            </span>
+          </td>
+          <td class="actions-cell">
+            <a href="/dashboard/zones/{{ zone.id }}" class="btn btn-sm btn-outline">
+              {{ 'Manage DNS' if zone.validated else 'Instructions' }}
+            </a>
+            <form method="post" action="/dashboard/zones/{{ zone.id }}/delete" style="display:inline"
+              onsubmit="return confirm('Delete {{ zone.domain }}? All DNS records in this zone will be removed.')">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if zones | length < tier.max_custom_domains %}
+  <div class="mt-4">
+    <button class="btn btn-outline" onclick="openModal('addZoneModal')">+ Add Domain</button>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+<!-- Add Domain Modal -->
+<div class="modal-overlay" id="addZoneModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Custom Domain</h2>
+      <button class="modal-close" onclick="closeModal('addZoneModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" action="/dashboard/zones" class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Domain</label>
+        <input type="text" name="domain" class="form-input" required placeholder="example.com or ddns.example.com"
+          autocomplete="off" autocapitalize="off">
+        <p class="form-hint">The domain or subdomain you want to delegate to this service.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Delegation type</label>
+        <div class="mt-2" style="display:flex;flex-direction:column;gap:10px">
+          <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer">
+            <input type="radio" name="zone_type" value="full" checked style="margin-top:3px;flex-shrink:0">
+            <div>
+              <strong>Full domain</strong>
+              <div class="text-muted" style="font-size:0.875em;margin-top:2px">You own the domain and will set its nameservers to <code>{{ nsPrimary }}</code> and <code>{{ nsSecondary }}</code>.</div>
+            </div>
+          </label>
+          <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer">
+            <input type="radio" name="zone_type" value="subdomain" style="margin-top:3px;flex-shrink:0">
+            <div>
+              <strong>Subdomain delegation</strong>
+              <div class="text-muted" style="font-size:0.875em;margin-top:2px">You will add NS record(s) for a subdomain at your existing DNS provider, pointing to our nameservers.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addZoneModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Domain</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

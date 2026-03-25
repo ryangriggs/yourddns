@@ -2,6 +2,9 @@
 
 const dns2 = require('dns2');
 const { Packet } = dns2;
+
+// dns2 does not export RCODE constants — use raw values
+const RCODE = { NOERROR: 0, FORMERR: 1, SERVFAIL: 2, NXDOMAIN: 3, NOTIMP: 4, REFUSED: 5 };
 const { getDb } = require('./db/index');
 
 let server;
@@ -59,7 +62,7 @@ async function handleQuery(request, send, rinfo) {
 
   // Block listed IPs from DNS resolution
   if (clientIp && isBlocked(db, clientIp)) {
-    response.header.rcode = Packet.RCODE.REFUSED;
+    response.header.rcode = RCODE.REFUSED;
     return send(response);
   }
 
@@ -68,7 +71,7 @@ async function handleQuery(request, send, rinfo) {
     const qtype = question.type;
 
     // Find which zone this query belongs to
-    const zones = db.prepare('SELECT * FROM zones WHERE is_active = 1 ORDER BY length(domain) DESC').all();
+    const zones = db.prepare('SELECT * FROM zones WHERE is_active = 1 AND validated = 1 ORDER BY length(domain) DESC').all();
     let matchedZone = null;
     let subdomain = null;
 
@@ -87,7 +90,7 @@ async function handleQuery(request, send, rinfo) {
     }
 
     if (!matchedZone) {
-      response.header.rcode = Packet.RCODE.REFUSED;
+      response.header.rcode = RCODE.REFUSED;
       continue;
     }
 
@@ -157,7 +160,7 @@ async function handleQuery(request, send, rinfo) {
         if (entry.type !== undefined) response.answers.push(entry);
       }
 
-      // DDNS record lookup (only for non-apex, non-@ queries)
+      // DDNS A record lookup (only for non-apex queries)
       if (subdomain && subdomain !== '@' && (qtype === Packet.TYPE.A || qtype === Packet.TYPE.ANY)) {
         const record = db.prepare(`
           SELECT r.* FROM ddns_records r
@@ -165,11 +168,8 @@ async function handleQuery(request, send, rinfo) {
         `).get(matchedZone.id, subdomain);
 
         if (record) {
-          // Check resolution rate limit for the record's owner
           const owner = db.prepare('SELECT u.id, t.max_resolutions_per_hour FROM users u JOIN tiers t ON t.id = u.tier_id WHERE u.id = ?').get(record.user_id);
-          if (owner && !checkResolutionRate(owner.id, owner.max_resolutions_per_hour)) {
-            // Rate limited — still respond but don't log the hit
-          } else {
+          if (!owner || checkResolutionRate(owner.id, owner.max_resolutions_per_hour)) {
             incrementHit(db, record.id, clientIp, 'A');
           }
           response.answers.push({
@@ -181,11 +181,33 @@ async function handleQuery(request, send, rinfo) {
           });
         }
       }
+
+      // DDNS AAAA record lookup (only for non-apex queries)
+      if (subdomain && subdomain !== '@' && (qtype === Packet.TYPE.AAAA || qtype === Packet.TYPE.ANY)) {
+        const record = db.prepare(`
+          SELECT r.* FROM ddns_records r
+          WHERE r.zone_id = ? AND LOWER(r.subdomain) = LOWER(?) AND r.is_enabled = 1 AND r.ip6_address IS NOT NULL
+        `).get(matchedZone.id, subdomain);
+
+        if (record) {
+          const owner = db.prepare('SELECT u.id, t.max_resolutions_per_hour FROM users u JOIN tiers t ON t.id = u.tier_id WHERE u.id = ?').get(record.user_id);
+          if (!owner || checkResolutionRate(owner.id, owner.max_resolutions_per_hour)) {
+            incrementHit(db, record.id, clientIp, 'AAAA');
+          }
+          response.answers.push({
+            name: qname,
+            type: Packet.TYPE.AAAA,
+            class: Packet.CLASS.IN,
+            ttl: record.ttl,
+            address: record.ip6_address,
+          });
+        }
+      }
     }
 
-    if (response.answers.length === 0 && qtype === Packet.TYPE.A) {
+    if (response.answers.length === 0 && (qtype === Packet.TYPE.A || qtype === Packet.TYPE.AAAA)) {
       // NXDOMAIN for unknown names in our zone
-      response.header.rcode = Packet.RCODE.NXDOMAIN;
+      response.header.rcode = RCODE.NXDOMAIN;
       const soa = buildSoa(matchedZone);
       response.authorities.push({
         name: matchedZone.domain,

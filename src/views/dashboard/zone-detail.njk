@@ -1,0 +1,143 @@
+{% extends "layouts/base.njk" %}
+{% set activePage = 'zones' %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <a href="/dashboard/zones" class="text-muted" style="font-size:0.875em;display:block;margin-bottom:4px">← My Domains</a>
+      <h1 class="page-title">{{ zone.domain }}</h1>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <span class="badge badge-blue">{{ 'Full Domain' if zone.zone_type == 'full' else 'Subdomain' }}</span>
+        <span class="badge {% if zone.validated %}badge-green{% else %}badge-yellow{% endif %}">
+          {{ 'Active' if zone.validated else 'Pending Validation' }}
+        </span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      {% if not zone.validated %}
+      <form method="post" action="/dashboard/zones/{{ zone.id }}/validate">
+        <button type="submit" class="btn btn-primary">Validate Now</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/dashboard/zones/{{ zone.id }}/delete"
+        onsubmit="return confirm('Delete {{ zone.domain }}? All DNS records in this zone will be permanently removed.')">
+        <button type="submit" class="btn btn-danger">Delete Zone</button>
+      </form>
+    </div>
+  </div>
+
+  {% if flash %}
+  <div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>
+  {% endif %}
+
+  {% if not zone.validated %}
+  <!-- Validation instructions -->
+  <div class="card mb-4">
+    <div class="card-header"><h2 class="card-title">Setup Instructions</h2></div>
+    <div class="card-body">
+      {% if zone.zone_type == 'full' %}
+      <p>At your domain registrar, set the nameservers for <strong>{{ zone.domain }}</strong> to:</p>
+      <table class="table table-sm mt-3 mb-3" style="width:auto">
+        <thead><tr><th>Type</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Nameserver 1</td><td class="mono">{{ nsPrimary }}</td></tr>
+          <tr><td>Nameserver 2</td><td class="mono">{{ nsSecondary }}</td></tr>
+        </tbody>
+      </table>
+      <p class="text-muted">Both nameservers must be set. DNS propagation can take up to 48 hours.</p>
+      {% else %}
+      <p>At your DNS provider, add the following NS records for <strong>{{ zone.domain }}</strong>:</p>
+      <table class="table table-sm mt-3 mb-3" style="width:auto">
+        <thead><tr><th>Name</th><th>Type</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">{{ zone.domain }}</td><td class="mono">NS</td><td class="mono">{{ nsPrimary }}</td></tr>
+          <tr><td class="mono">{{ zone.domain }}</td><td class="mono">NS</td><td class="mono">{{ nsSecondary }}</td></tr>
+        </tbody>
+      </table>
+      <p class="text-muted">At least one NS record is required. Both are recommended for redundancy. DNS changes may take minutes to hours to propagate.</p>
+      {% endif %}
+      <p class="text-muted mt-3">Once configured, click <strong>Validate Now</strong> to confirm. You can try again any time if it fails due to propagation delays.</p>
+    </div>
+  </div>
+  {% else %}
+  <!-- Static DNS Records -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <h2 class="card-title">Static DNS Records</h2>
+      <button class="btn btn-sm btn-outline" onclick="openModal('addStaticModal')">+ Add Record</button>
+    </div>
+    {% if staticRecords | length > 0 %}
+    <table class="table">
+      <thead>
+        <tr><th>Name</th><th>Type</th><th>Value</th><th>TTL</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for rec in staticRecords %}
+        <tr>
+          <td class="mono">{{ rec.name }}</td>
+          <td><span class="badge badge-blue">{{ rec.type }}</span></td>
+          <td class="mono">{{ rec.value }}{% if rec.priority %} <span class="text-muted">(pri: {{ rec.priority }})</span>{% endif %}</td>
+          <td class="mono">{{ rec.ttl }}s</td>
+          <td>
+            <form method="post" action="/dashboard/zones/{{ zone.id }}/records/{{ rec.id }}/delete"
+              onsubmit="return confirm('Delete this record?')">
+              <button type="submit" class="btn btn-xs btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="card-body">
+      <p class="text-muted">No static records yet. Add A, AAAA, CNAME, MX, or TXT records for <strong>{{ zone.domain }}</strong>.</p>
+      <p class="text-muted">Dynamic DNS records are managed from the <a href="/dashboard">Records</a> page — select <strong>{{ zone.domain }}</strong> as the zone when creating one.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add Static Record Modal -->
+<div class="modal-overlay" id="addStaticModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Static Record</h2>
+      <button class="modal-close" onclick="closeModal('addStaticModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" action="/dashboard/zones/{{ zone.id }}/records" class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Name <span class="text-muted">(@ for apex)</span></label>
+        <input type="text" name="name" class="form-input" required placeholder="@ or www or mail">
+        <p class="form-hint">Use <code>@</code> for <strong>{{ zone.domain }}</strong>, or enter a subdomain like <code>www</code>.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select name="type" class="form-select">
+          <option>A</option><option>AAAA</option><option>CNAME</option><option>MX</option><option>TXT</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Value</label>
+        <input type="text" name="value" class="form-input" required placeholder="IP address or hostname">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">TTL (s)</label>
+          <input type="number" name="ttl" class="form-input" value="300" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority <span class="text-muted">(MX)</span></label>
+          <input type="number" name="priority" class="form-input" placeholder="10">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addStaticModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

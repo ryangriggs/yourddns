@@ -1,5 +1,6 @@
 'use strict';
 
+const net = require('net');
 const { getDb, getSetting } = require('../db/index');
 const { generatePat, hashPat } = require('../services/pat');
 
@@ -26,9 +27,12 @@ module.exports = async function dashboardRoutes(fastify) {
     const zones = db.prepare(`
       SELECT z.* FROM zones z
       JOIN zone_tiers zt ON zt.zone_id = z.id
-      WHERE zt.tier_id = ? AND z.is_active = 1
-      ORDER BY z.domain
-    `).all(req.user.tier_id);
+      WHERE zt.tier_id = ? AND z.is_active = 1 AND z.validated = 1 AND z.user_id IS NULL
+      UNION
+      SELECT z.* FROM zones z
+      WHERE z.user_id = ? AND z.is_active = 1 AND z.validated = 1
+      ORDER BY domain
+    `).all(req.user.tier_id, req.user.id);
 
     const tier = {
       max_entries: req.user.max_entries,
@@ -56,7 +60,7 @@ module.exports = async function dashboardRoutes(fastify) {
   // POST /dashboard/records  — create
   fastify.post('/dashboard/records', async (req, reply) => {
     const db = getDb();
-    const { subdomain, zone_id, ttl, ip } = req.body || {};
+    const { subdomain, zone_id, ttl, ip, ip6 } = req.body || {};
 
     // Clear session flash
     req.session.flash = null;
@@ -97,7 +101,8 @@ module.exports = async function dashboardRoutes(fastify) {
       return reply.redirect('/dashboard');
     }
 
-    const minTtl = req.user.min_ttl || 300;
+    const globalMinTtl = parseInt(getSetting('global_min_ttl') || 1, 10);
+    const minTtl = Math.max(globalMinTtl, req.user.min_ttl || 300);
     const resolvedTtl = Math.max(minTtl, parseInt(ttl || minTtl, 10));
 
     // Duplicate check
@@ -110,8 +115,9 @@ module.exports = async function dashboardRoutes(fastify) {
     const pat = generatePat();
     const patHash = hashPat(pat);
 
-    const ipVal = (ip && ip.trim()) ? ip.trim() : null;
-    db.prepare('INSERT INTO ddns_records (user_id, zone_id, subdomain, ttl, pat_hash, ip_address) VALUES (?, ?, ?, ?, ?, ?)').run(req.user.id, zone_id, sub, resolvedTtl, patHash, ipVal);
+    const ipVal  = (ip  && ip.trim())  ? ip.trim()  : null;
+    const ip6Val = (ip6 && ip6.trim()) ? ip6.trim() : null;
+    db.prepare('INSERT INTO ddns_records (user_id, zone_id, subdomain, ttl, pat_hash, ip_address, ip6_address) VALUES (?, ?, ?, ?, ?, ?, ?)').run(req.user.id, zone_id, sub, resolvedTtl, patHash, ipVal, ip6Val);
 
     req.session.newPat = { subdomain: sub, zone: zone.domain, pat };
     req.session.flash = { type: 'success', message: 'Record created. Save your API key — it will only be shown once.' };
@@ -142,9 +148,38 @@ module.exports = async function dashboardRoutes(fastify) {
     const db = getDb();
     const record = db.prepare('SELECT * FROM ddns_records WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
     if (!record) return reply.code(404).send('Not found');
-    const minTtl = req.user.min_ttl || 300;
+    const globalMinTtl = parseInt(getSetting('global_min_ttl') || 1, 10);
+    const minTtl = Math.max(globalMinTtl, req.user.min_ttl || 300);
     const ttl = Math.max(minTtl, parseInt(req.body.ttl || minTtl, 10));
     db.prepare('UPDATE ddns_records SET ttl = ? WHERE id = ?').run(ttl, record.id);
+    return reply.redirect('/dashboard');
+  });
+
+  // POST /dashboard/records/:id/edit
+  fastify.post('/dashboard/records/:id/edit', async (req, reply) => {
+    const db = getDb();
+    const record = db.prepare('SELECT * FROM ddns_records WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+    if (!record) return reply.code(404).send('Not found');
+
+    const { ip, ip6, ttl } = req.body || {};
+    const ipVal  = (ip  && ip.trim())  ? ip.trim()  : null;
+    const ip6Val = (ip6 && ip6.trim()) ? ip6.trim() : null;
+
+    if (ipVal && !net.isIPv4(ipVal)) {
+      req.session.flash = { type: 'error', message: 'Invalid IPv4 address.' };
+      return reply.redirect('/dashboard');
+    }
+    if (ip6Val && !net.isIPv6(ip6Val)) {
+      req.session.flash = { type: 'error', message: 'Invalid IPv6 address.' };
+      return reply.redirect('/dashboard');
+    }
+
+    const globalMinTtl = parseInt(getSetting('global_min_ttl') || 1, 10);
+    const minTtl = Math.max(globalMinTtl, req.user.min_ttl || 300);
+    const resolvedTtl = Math.max(minTtl, parseInt(ttl || minTtl, 10));
+
+    db.prepare('UPDATE ddns_records SET ip_address = ?, ip6_address = ?, ttl = ? WHERE id = ?').run(ipVal, ip6Val, resolvedTtl, record.id);
+    req.session.flash = { type: 'success', message: 'Record updated.' };
     return reply.redirect('/dashboard');
   });
 

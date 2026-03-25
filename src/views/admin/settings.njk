@@ -60,6 +60,29 @@
     </div>
 
     <div class="card mb-4">
+      <div class="card-header"><h2 class="card-title">DNS</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Global Minimum TTL (seconds)</label>
+          <input type="number" name="global_min_ttl" class="form-input" value="{{ settings.global_min_ttl.value }}" min="1" step="1">
+          <p class="form-hint">Hard floor applied to all tiers. Can be as low as 1 second. Individual tier minimums still apply if higher.</p>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Primary Nameserver</label>
+            <input type="text" name="ns_primary" class="form-input" value="{{ settings.ns_primary.value }}">
+            <p class="form-hint">e.g. ns1.yourddns.com</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Secondary Nameserver</label>
+            <input type="text" name="ns_secondary" class="form-input" value="{{ settings.ns_secondary.value }}">
+            <p class="form-hint">e.g. ns2.yourddns.com</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
       <div class="card-header"><h2 class="card-title">Stripe</h2></div>
       <div class="card-body">
         <div class="form-group">
@@ -88,7 +111,7 @@
   <div class="table-card">
     <table class="table">
       <thead>
-        <tr><th>Name</th><th>Users</th><th>Entries</th><th>Min TTL</th><th>Res/hr</th><th>Updates/hr</th><th>Min Sub Len</th><th>History</th><th>Price/mo</th><th></th></tr>
+        <tr><th>Name</th><th>Users</th><th>Entries</th><th>Min TTL</th><th>Res/hr</th><th>Updates/hr</th><th>Min Sub Len</th><th>History</th><th>Custom Domains</th><th>Price/mo</th><th></th></tr>
       </thead>
       <tbody>
         {% for tier in tiers %}
@@ -101,6 +124,7 @@
           <td>{{ tier.max_updates_per_hour }}</td>
           <td>{{ tier.min_subdomain_length }}</td>
           <td>{{ tier.history_days }}d</td>
+          <td>{{ tier.max_custom_domains }}</td>
           <td>{% if tier.price_monthly == 0 %}Free{% else %}${{ (tier.price_monthly / 100) | round(2) }}{% endif %}</td>
           <td class="actions-cell">
             <button class="btn btn-xs btn-outline" onclick="openEditTier({{ tier.id }})">Edit</button>
@@ -178,6 +202,7 @@ function openEditTier(id) {
   form.querySelector('[name=price_monthly]').value = tier.price_monthly;
   form.querySelector('[name=stripe_price_id]').value = tier.stripe_price_id || '';
   form.querySelector('[name=sort_order]').value = tier.sort_order;
+  form.querySelector('[name=max_custom_domains]').value = tier.max_custom_domains || 0;
   openModal('editTierModal');
 }
 </script>

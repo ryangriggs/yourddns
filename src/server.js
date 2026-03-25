@@ -112,6 +112,7 @@ async function build() {
 
   await fastify.register(require('./routes/auth'));
   await fastify.register(require('./routes/dashboard'));
+  await fastify.register(require('./routes/zones'));
   await fastify.register(require('./routes/reports'));
   await fastify.register(require('./routes/admin'));
   await fastify.register(require('./routes/api'));

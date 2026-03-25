@@ -36,6 +36,37 @@ async function initDb() {
   const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
 
+  // Migrations for existing databases
+  const ddnsCols = db.prepare('PRAGMA table_info(ddns_records)').all();
+  if (!ddnsCols.find(c => c.name === 'ip6_address')) {
+    db.exec('ALTER TABLE ddns_records ADD COLUMN ip6_address TEXT');
+    console.log('[db] Migration: added ip6_address column to ddns_records');
+  }
+
+  // Zone migrations
+  const zoneCols = db.prepare('PRAGMA table_info(zones)').all().map(c => c.name);
+  if (!zoneCols.includes('user_id')) {
+    db.exec('ALTER TABLE zones ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE');
+  }
+  if (!zoneCols.includes('validated')) {
+    db.exec('ALTER TABLE zones ADD COLUMN validated INTEGER NOT NULL DEFAULT 1');
+  }
+  if (!zoneCols.includes('zone_type')) {
+    db.exec("ALTER TABLE zones ADD COLUMN zone_type TEXT NOT NULL DEFAULT 'full'");
+  }
+
+  // Tier migrations
+  const tierCols = db.prepare('PRAGMA table_info(tiers)').all().map(c => c.name);
+  if (!tierCols.includes('max_custom_domains')) {
+    db.exec('ALTER TABLE tiers ADD COLUMN max_custom_domains INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // Ensure new settings exist on existing deployments (INSERT OR IGNORE — safe to always run)
+  const ensureSettings = db.prepare('INSERT OR IGNORE INTO admin_settings (key, value, description) VALUES (?, ?, ?)');
+  ensureSettings.run('global_min_ttl', '1',                                                      'Global minimum TTL (seconds) — floor for all tiers');
+  ensureSettings.run('ns_primary',     process.env.NS_PRIMARY   || 'ns1.yourddns.com',           'Primary nameserver hostname');
+  ensureSettings.run('ns_secondary',   process.env.NS_SECONDARY || 'ns2.yourddns.com',           'Secondary nameserver hostname');
+
   await seedDefaultData();
   await bootstrapAdmin();
   return db;
@@ -46,14 +77,14 @@ async function seedDefaultData() {
   if (existing.c > 0) return;
 
   const insertTier = db.prepare(`
-    INSERT OR IGNORE INTO tiers (name, display_name, max_entries, min_ttl, max_resolutions_per_hour, max_updates_per_hour, min_subdomain_length, history_days, price_monthly, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO tiers (name, display_name, max_entries, min_ttl, max_resolutions_per_hour, max_updates_per_hour, min_subdomain_length, history_days, price_monthly, sort_order, max_custom_domains)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   withTransaction(() => {
-    insertTier.run('free',    'Free',    3,   300, 1000,  10, 4, 7,   0,    0);
-    insertTier.run('starter', 'Starter', 10,  120, 5000,  30, 3, 30,  500,  1);
-    insertTier.run('pro',     'Pro',     50,  60,  20000, 60, 2, 90,  1500, 2);
+    insertTier.run('free',    'Free',    3,   300, 1000,  10, 4, 7,   0,    0, 0);
+    insertTier.run('starter', 'Starter', 10,  120, 5000,  30, 3, 30,  500,  1, 1);
+    insertTier.run('pro',     'Pro',     50,  60,  20000, 60, 2, 90,  1500, 2, 5);
   });
 
   const settings = [
@@ -68,6 +99,9 @@ async function seedDefaultData() {
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
     ['news_content',                '', 'News/announcement block shown on landing page'],
+    ['global_min_ttl',              '1', 'Global minimum TTL (seconds) — floor for all tiers'],
+    ['ns_primary',   process.env.NS_PRIMARY || 'ns1.yourddns.com',   'Primary nameserver hostname'],
+    ['ns_secondary', process.env.NS_SECONDARY || 'ns2.yourddns.com', 'Secondary nameserver hostname'],
   ];
 
   const insertSetting = db.prepare('INSERT OR IGNORE INTO admin_settings (key, value, description) VALUES (?, ?, ?)');

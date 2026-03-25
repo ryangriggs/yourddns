@@ -118,7 +118,7 @@ All values are configurable in Admin → Settings.
 
 ## DNS Port Setup
 
-The DNS server binds to port 53 inside the container, mapped to host port **5300** by default (to avoid conflicts with `systemd-resolved` or other services). Use iptables to forward public port 53 → 5300:
+The DNS server binds to port **5300** inside the container (no root required), also exposed on host port 5300. Public port 53 is forwarded to 5300 via iptables, so the container never needs elevated privileges. Use iptables to forward public port 53 → 5300:
 
 ```bash
 # Forward DNS traffic to the container (scoped to eth0 — do NOT omit -i eth0 or

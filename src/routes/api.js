@@ -1,12 +1,13 @@
 'use strict';
 
+const net = require('net');
 const { getDb } = require('../db/index');
 const { hashPat } = require('../services/pat');
 
 module.exports = async function apiRoutes(fastify) {
-  // GET /api/update?key=...&subdomain=...&ip=...
+  // GET /api/update?key=...&subdomain=...&ip=...&ip6=...
   fastify.get('/api/update', async (req, reply) => {
-    const { key, subdomain, ip } = req.query || {};
+    const { key, subdomain, ip, ip6 } = req.query || {};
     const clientIp = req.ip;
     const db = getDb();
 
@@ -19,7 +20,7 @@ module.exports = async function apiRoutes(fastify) {
       return reply.code(403).send('blocked');
     }
 
-    // Look up record by PAT hash directly (O(1) not O(n))
+    // Look up record by PAT hash
     const patHash = hashPat(key);
     const record = db.prepare(`
       SELECT r.*, z.domain as zone_domain
@@ -39,7 +40,7 @@ module.exports = async function apiRoutes(fastify) {
 
     if (!record.is_enabled) return reply.code(403).send('disabled');
 
-    // Rate limiting: check updates per hour for user's tier
+    // Rate limiting
     const user = db.prepare('SELECT u.*, t.max_updates_per_hour FROM users u JOIN tiers t ON t.id = u.tier_id WHERE u.id = ?').get(record.user_id);
     const maxUpdates = user ? user.max_updates_per_hour : 10;
     const recentUpdates = db.prepare(`
@@ -48,28 +49,52 @@ module.exports = async function apiRoutes(fastify) {
     `).get(record.id).c;
     if (recentUpdates >= maxUpdates) return reply.code(429).send('abuse');
 
-    // Determine IP to set
-    let newIp = ip ? ip.trim() : clientIp;
+    // Determine what to update
+    let newIp = null;
+    let newIp6 = null;
 
-    // Basic IPv4 validation
-    const ipv4Re = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (!ipv4Re.test(newIp)) return reply.code(400).send('badip');
+    if (ip !== undefined || ip6 !== undefined) {
+      // Explicit params provided — only update what's specified
+      if (ip !== undefined) {
+        const v = ip.trim();
+        if (!net.isIPv4(v)) return reply.code(400).send('badip');
+        newIp = v;
+      }
+      if (ip6 !== undefined) {
+        const v = ip6.trim();
+        if (!net.isIPv6(v)) return reply.code(400).send('badip');
+        newIp6 = v;
+      }
+    } else {
+      // Auto-detect from client connection type
+      if (net.isIPv6(clientIp)) {
+        newIp6 = clientIp;
+      } else if (net.isIPv4(clientIp)) {
+        newIp = clientIp;
+      } else {
+        return reply.code(400).send('badip');
+      }
+    }
 
-    const oldIp = record.ip_address;
+    // Build UPDATE
+    const setClauses = [];
+    const runParams = [];
+    if (newIp !== null)  { setClauses.push('ip_address = ?');  runParams.push(newIp); }
+    if (newIp6 !== null) { setClauses.push('ip6_address = ?'); runParams.push(newIp6); }
+    setClauses.push("last_update_received_at = datetime('now')");
+    runParams.push(record.id);
 
-    db.prepare(`
-      UPDATE ddns_records
-      SET ip_address = ?, last_update_received_at = datetime('now')
-      WHERE id = ?
-    `).run(newIp, record.id);
+    db.prepare(`UPDATE ddns_records SET ${setClauses.join(', ')} WHERE id = ?`).run(...runParams);
 
+    const logIp = newIp || newIp6;
     db.prepare(`
       INSERT INTO update_logs (record_id, requester_ip, user_agent, new_ip)
       VALUES (?, ?, ?, ?)
-    `).run(record.id, clientIp, req.headers['user-agent'] || null, newIp);
+    `).run(record.id, clientIp, req.headers['user-agent'] || null, logIp);
 
-    const changed = newIp !== oldIp;
-    return reply.send(changed ? `good ${newIp}` : `nochg ${newIp}`);
+    const changed = (newIp !== null && newIp !== record.ip_address) || (newIp6 !== null && newIp6 !== record.ip6_address);
+    const responseIps = [newIp, newIp6].filter(Boolean).join(' ');
+    return reply.send(changed ? `good ${responseIps}` : `nochg ${responseIps}`);
   });
 
   // GET /api/status — health check

@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS tiers (
   price_monthly INTEGER NOT NULL DEFAULT 0,
   stripe_price_id TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
-  sort_order INTEGER NOT NULL DEFAULT 0
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  max_custom_domains INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS zones (
@@ -71,7 +72,11 @@ CREATE TABLE IF NOT EXISTS zones (
   soa_serial INTEGER NOT NULL DEFAULT 1,
   default_ttl INTEGER NOT NULL DEFAULT 300,
   is_active INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  user_id INTEGER,
+  validated INTEGER NOT NULL DEFAULT 1,
+  zone_type TEXT NOT NULL DEFAULT 'full',
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Static DNS records admin can manage per zone (A, MX, CNAME, TXT, etc.)
@@ -101,6 +106,7 @@ CREATE TABLE IF NOT EXISTS ddns_records (
   zone_id INTEGER NOT NULL,
   subdomain TEXT NOT NULL COLLATE NOCASE,
   ip_address TEXT,
+  ip6_address TEXT,
   ttl INTEGER NOT NULL DEFAULT 300,
   is_enabled INTEGER NOT NULL DEFAULT 1,
   pat_hash TEXT,
