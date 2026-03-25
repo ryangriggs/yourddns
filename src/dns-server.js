@@ -29,11 +29,13 @@ function getClientIp(rinfo) {
 
 function incrementHit(db, recordId, clientIp, qtype) {
   try {
-    db.prepare('UPDATE ddns_records SET hit_count = hit_count + 1 WHERE id = ?').run(recordId);
     db.prepare('INSERT INTO dns_hits (record_id, client_ip, query_type) VALUES (?, ?, ?)').run(recordId, clientIp, qtype);
   } catch (e) {
     console.error('[dns] hit log error:', e.message);
   }
+  try {
+    db.prepare('UPDATE ddns_records SET hit_count = hit_count + 1 WHERE id = ?').run(recordId);
+  } catch (_) { /* hit_count column may not exist on old schema */ }
 }
 
 function isBlocked(db, ip) {

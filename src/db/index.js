@@ -37,10 +37,14 @@ async function initDb() {
   db.exec(schema);
 
   // Migrations for existing databases
-  const ddnsCols = db.prepare('PRAGMA table_info(ddns_records)').all();
-  if (!ddnsCols.find(c => c.name === 'ip6_address')) {
+  const ddnsCols = db.prepare('PRAGMA table_info(ddns_records)').all().map(c => c.name);
+  if (!ddnsCols.includes('ip6_address')) {
     db.exec('ALTER TABLE ddns_records ADD COLUMN ip6_address TEXT');
-    console.log('[db] Migration: added ip6_address column to ddns_records');
+    console.log('[db] Migration: added ip6_address to ddns_records');
+  }
+  if (!ddnsCols.includes('hit_count')) {
+    db.exec('ALTER TABLE ddns_records ADD COLUMN hit_count INTEGER NOT NULL DEFAULT 0');
+    console.log('[db] Migration: added hit_count to ddns_records');
   }
 
   // Zone migrations

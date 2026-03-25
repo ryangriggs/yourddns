@@ -230,12 +230,29 @@ module.exports = async function dashboardRoutes(fastify) {
 
   // GET /dashboard/profile
   fastify.get('/dashboard/profile', async (req, reply) => {
+    const db = getDb();
+    const tiers = db.prepare('SELECT * FROM tiers ORDER BY sort_order').all();
     const flash = req.session.flash;
     delete req.session.flash;
     return reply.view('dashboard/profile.njk', {
       title: 'Profile',
+      tiers,
       flash,
     });
+  });
+
+  // POST /dashboard/profile/change-plan
+  fastify.post('/dashboard/profile/change-plan', async (req, reply) => {
+    const db = getDb();
+    const { tier_id } = req.body || {};
+    const tier = db.prepare('SELECT * FROM tiers WHERE id = ?').get(tier_id);
+    if (!tier) {
+      req.session.flash = { type: 'error', message: 'Invalid plan selected.' };
+      return reply.redirect('/dashboard/profile');
+    }
+    db.prepare('UPDATE users SET tier_id = ? WHERE id = ?').run(tier.id, req.user.id);
+    req.session.flash = { type: 'success', message: `Plan changed to ${tier.display_name}.` };
+    return reply.redirect('/dashboard/profile');
   });
 
   // POST /dashboard/profile/change-password

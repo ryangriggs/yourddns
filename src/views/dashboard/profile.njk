@@ -19,6 +19,38 @@
     </div>
   </div>
 
+  <div class="card mb-4">
+    <div class="card-header"><h2 class="card-title">Change Plan</h2></div>
+    <div class="card-body">
+      <div class="plan-grid">
+        {% for tier in tiers %}
+        <div class="plan-option {% if tier.id == user.tier_id %}plan-option-current{% endif %}">
+          <div class="plan-option-name">{{ tier.display_name }}</div>
+          <div class="plan-option-price">
+            {% if tier.price_monthly == 0 %}Free
+            {% else %}${{ (tier.price_monthly / 100) | round(2) }}/mo{% endif %}
+          </div>
+          <ul class="plan-option-features">
+            <li>{{ tier.max_entries }} records</li>
+            <li>{{ tier.min_ttl }}s min TTL</li>
+            <li>{{ tier.max_resolutions_per_hour }} resolutions/hr</li>
+            <li>{{ tier.history_days }} days history</li>
+            {% if tier.max_custom_domains > 0 %}<li>{{ tier.max_custom_domains }} custom domain{% if tier.max_custom_domains != 1 %}s{% endif %}</li>{% endif %}
+          </ul>
+          {% if tier.id == user.tier_id %}
+          <span class="btn btn-sm btn-outline w-full" style="cursor:default;opacity:0.6">Current plan</span>
+          {% else %}
+          <form method="post" action="/dashboard/profile/change-plan">
+            <input type="hidden" name="tier_id" value="{{ tier.id }}">
+            <button type="submit" class="btn btn-sm btn-primary w-full">Switch to this plan</button>
+          </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header"><h2 class="card-title">Change Password</h2></div>
     <div class="card-body">

@@ -102,7 +102,6 @@ async function build() {
 
   // ── Routes ────────────────────────────────────────────────────────────────
   fastify.get('/', async (req, reply) => {
-    if (req.user) return reply.redirect('/dashboard');
     const db = getDb();
     const tiers = db.prepare("SELECT * FROM tiers ORDER BY sort_order").all();
     const newsContent = getSetting('news_content') || '';
