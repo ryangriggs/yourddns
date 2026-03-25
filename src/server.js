@@ -53,33 +53,33 @@ async function build() {
 
   // Nunjucks setup
   const viewsPath = path.join(__dirname, 'views');
-  const env = nunjucks.configure(viewsPath, {
-    autoescape: true,
-    noCache: process.env.NODE_ENV !== 'production',
-  });
-
-  env.addFilter('date', (val, fmt) => {
-    if (!val) return '—';
-    const d = new Date(val);
-    if (isNaN(d)) return val;
-    if (fmt === 'relative') {
-      const diff = Date.now() - d.getTime();
-      const mins = Math.floor(diff / 60000);
-      if (mins < 1) return 'just now';
-      if (mins < 60) return `${mins}m ago`;
-      const hrs = Math.floor(mins / 60);
-      if (hrs < 24) return `${hrs}h ago`;
-      const days = Math.floor(hrs / 24);
-      return `${days}d ago`;
-    }
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  });
-
-  env.addFilter('json', (val) => JSON.stringify(val));
 
   await fastify.register(require('@fastify/view'), {
-    engine: { nunjucks: env },
+    engine: { nunjucks },
     root: viewsPath,
+    options: {
+      autoescape: true,
+      noCache: process.env.NODE_ENV !== 'production',
+      onConfigure: (env) => {
+        env.addFilter('date', (val, fmt) => {
+          if (!val) return '—';
+          const d = new Date(val);
+          if (isNaN(d)) return val;
+          if (fmt === 'relative') {
+            const diff = Date.now() - d.getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'just now';
+            if (mins < 60) return `${mins}m ago`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `${hrs}h ago`;
+            const days = Math.floor(hrs / 24);
+            return `${days}d ago`;
+          }
+          return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        });
+        env.addFilter('json', (val) => JSON.stringify(val));
+      },
+    },
     defaultContext: {},
   });
 

@@ -53,8 +53,10 @@ sudo systemctl disable systemd-resolved
 echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
 
 # 5. Set up iptables forwarding for DNS (53 → 5300)
-sudo iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5300
-sudo iptables -t nat -A PREROUTING -p tcp --dport 53 -j REDIRECT --to-port 5300
+# Use -i eth0 to scope to the external interface only — prevents Docker containers'
+# own DNS queries from being incorrectly redirected to the DDNS server
+sudo iptables -t nat -I PREROUTING -i eth0 -p udp --dport 53 -j REDIRECT --to-port 5300
+sudo iptables -t nat -I PREROUTING -i eth0 -p tcp --dport 53 -j REDIRECT --to-port 5300
 sudo apt-get install -y iptables-persistent && sudo netfilter-persistent save
 
 # 6. For first boot: nginx needs SSL certs to start, so temporarily use HTTP-only config
@@ -119,9 +121,10 @@ All values are configurable in Admin → Settings.
 The DNS server binds to port 53 inside the container, mapped to host port **5300** by default (to avoid conflicts with `systemd-resolved` or other services). Use iptables to forward public port 53 → 5300:
 
 ```bash
-# Forward DNS traffic to the container
-sudo iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-port 5300
-sudo iptables -t nat -A PREROUTING -p tcp --dport 53 -j REDIRECT --to-port 5300
+# Forward DNS traffic to the container (scoped to eth0 — do NOT omit -i eth0 or
+# Docker containers will be unable to resolve external DNS during builds/runtime)
+sudo iptables -t nat -I PREROUTING -i eth0 -p udp --dport 53 -j REDIRECT --to-port 5300
+sudo iptables -t nat -I PREROUTING -i eth0 -p tcp --dport 53 -j REDIRECT --to-port 5300
 
 # Persist rules across reboots
 sudo apt-get install -y iptables-persistent
