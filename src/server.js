@@ -78,9 +78,8 @@ async function build() {
   env.addFilter('json', (val) => JSON.stringify(val));
 
   await fastify.register(require('@fastify/view'), {
-    engine: { nunjucks },
+    engine: { nunjucks: env },
     root: viewsPath,
-    options: { nunjucksEnv: env },
     defaultContext: {},
   });
 
