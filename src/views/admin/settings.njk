@@ -96,9 +96,14 @@
       <div class="card-header"><h2 class="card-title">Donations</h2></div>
       <div class="card-body">
         <div class="form-group">
-          <label class="form-label">PayPal Donation URL</label>
+          <label class="form-label">GitHub Sponsors URL</label>
+          <input type="url" name="github_sponsors_url" class="form-input" value="{{ settings.github_sponsors_url.value }}" placeholder="https://github.com/sponsors/username">
+          <p class="form-hint">Shown prominently on the /donate page and in the dashboard banner.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">PayPal Donation URL <span class="text-muted">(optional)</span></label>
           <input type="url" name="paypal_donation_url" class="form-input" value="{{ settings.paypal_donation_url.value }}" placeholder="https://www.paypal.com/donate?hosted_button_id=...">
-          <p class="form-hint">Shown on the /donate page and linked from the dashboard banner. Leave blank to hide donation prompts.</p>
+          <p class="form-hint">Shown as a secondary option on the /donate page. Leave blank to hide.</p>
         </div>
       </div>
     </div>

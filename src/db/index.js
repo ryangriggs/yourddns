@@ -73,7 +73,8 @@ async function initDb() {
   ensureSettings.run('zone_validation_timeout_hours', '48',                                            'Hours before a pending custom domain is removed if not validated');
   ensureSettings.run('site_ip',                       '',                                              'Server IP address — auto-added as apex A record when zones are created');
   ensureSettings.run('subscriptions_enabled',         'false',                                         'Show paid plans and upgrade prompts');
-  ensureSettings.run('paypal_donation_url',           '',                                              'PayPal donation link shown on the /donate page');
+  ensureSettings.run('github_sponsors_url',           'https://github.com/sponsors/ryangriggs',        'GitHub Sponsors link shown on the /donate page');
+  ensureSettings.run('paypal_donation_url',           '',                                              'PayPal donation link shown on the /donate page (optional)');
 
   await seedDefaultData();
   await bootstrapAdmin();
@@ -105,7 +106,8 @@ async function seedDefaultData() {
     ['password_max_attempts_per_hour', '10', 'Max password login attempts per hour'],
     ['registration_enabled',        'true',  'Allow new user registrations'],
     ['subscriptions_enabled',       'false', 'Show paid plans and upgrade prompts'],
-    ['paypal_donation_url',         '',      'PayPal donation link shown on the /donate page'],
+    ['github_sponsors_url',         'https://github.com/sponsors/ryangriggs', 'GitHub Sponsors link shown on the /donate page'],
+    ['paypal_donation_url',         '',      'PayPal donation link shown on the /donate page (optional)'],
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
     ['news_content',                '', 'News/announcement block shown on landing page'],

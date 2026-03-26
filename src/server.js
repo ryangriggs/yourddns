@@ -100,6 +100,7 @@ async function build() {
       siteUrl: getSetting('site_url') || '',
       appVersion: version,
       paypalDonationUrl: getSetting('paypal_donation_url') || '',
+      githubSponsorsUrl: getSetting('github_sponsors_url') || '',
     };
   });
 
@@ -139,7 +140,8 @@ async function build() {
 
   fastify.get('/donate', async (req, reply) => {
     const paypalUrl = getSetting('paypal_donation_url') || '';
-    return reply.view('donate.njk', { title: 'Support YourDDNS', paypalUrl });
+    const githubSponsorsUrl = getSetting('github_sponsors_url') || '';
+    return reply.view('donate.njk', { title: 'Support YourDDNS', paypalUrl, githubSponsorsUrl });
   });
 
   await fastify.register(require('./routes/auth'));

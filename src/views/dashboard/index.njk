@@ -1,7 +1,7 @@
 {% extends "layouts/base.njk" %}
 {% set activePage = 'dashboard' %}
 {% block content %}
-{% if paypalDonationUrl %}
+{% if githubSponsorsUrl or paypalDonationUrl %}
 <div class="donation-banner" id="donationBanner">
   <span>YourDDNS is free and open-source. If it's useful to you, consider supporting the project.</span>
   <div class="donation-banner-actions">

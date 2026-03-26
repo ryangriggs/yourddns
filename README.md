@@ -3,13 +3,13 @@
 Self-hosted Dynamic DNS service built for developers. Multi-user, API-driven, with custom domain support and a clean dashboard.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate?hosted_button_id=REPLACE_WITH_YOUR_BUTTON_ID)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/ryangriggs?label=Sponsor&logo=GitHub)](https://github.com/sponsors/ryangriggs)
 
 ## Support the Project
 
-YourDDNS is free and open-source. If you find it useful, please consider making a donation to help cover server costs and ongoing development.
+YourDDNS is free and open-source. If you find it useful, please consider sponsoring to help cover server costs and ongoing development.
 
-**[Donate via PayPal →](https://www.paypal.com/donate?hosted_button_id=REPLACE_WITH_YOUR_BUTTON_ID)**
+**[Sponsor on GitHub →](https://github.com/sponsors/ryangriggs)**
 
 Even a small contribution helps keep the service running for everyone.
 
