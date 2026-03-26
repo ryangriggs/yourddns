@@ -7,7 +7,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },
-  "license": "MIT",
+  "license": "AGPL",
   "dependencies": {
     "@fastify/cookie": "^9.4.0",
     "@fastify/formbody": "^7.4.0",

@@ -3,7 +3,7 @@
 Self-hosted Dynamic DNS service built for developers. Multi-user, API-driven, with custom domain support and a clean dashboard.
 
 # Use our instance instead of running your own
-** We offer a running instance at [yourDDNS.com](yourddns.com), free to use! **
+**We offer a running instance at [YourDDNS.com](yourddns.com), free to use!**
 
 # License
 [![License: AGPL](https://img.shields.io/badge/License-AGPL-green.svg)](LICENSE)
