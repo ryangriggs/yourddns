@@ -8,7 +8,11 @@
 
 # Main site
 {$SITE_DOMAIN:yourddns.com} {
-	reverse_proxy app:3000
+	# NOTE: uses localhost because the app runs with network_mode: host.
+	# Change back to app:3000 if reverting to bridge networking on Windows/Mac.
+	reverse_proxy localhost:3000 {
+		header_up X-Real-IP {remote_host}
+	}
 }
 
 # www → apex redirect
