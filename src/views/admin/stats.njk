@@ -81,7 +81,7 @@ async function updateChart() {
   const from = document.getElementById('fromDate').value || fmt(weekAgo);
   const to = document.getElementById('toDate').value || fmt(today);
   if (!checked.length) { document.getElementById('chartEmpty').style.display=''; document.getElementById('chartWrap').style.display='none'; if(chart){chart.destroy();chart=null;} return; }
-  const params = checked.map(id=>`records[]=${id}`).join('&');
+  const params = checked.map(id=>`records=${id}`).join('&');
   const res = await fetch(`/admin/stats/data?${params}&from=${from}&to=${to}`);
   const { datasets } = await res.json();
   document.getElementById('chartEmpty').style.display='none';

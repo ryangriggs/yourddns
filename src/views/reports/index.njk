@@ -112,7 +112,7 @@ async function updateChart() {
     return;
   }
 
-  const params = checked.map(id => `records[]=${id}`).join('&');
+  const params = checked.map(id => `records=${id}`).join('&');
   const res = await fetch(`/reports/data?${params}&from=${from}&to=${to}`);
   const { datasets } = await res.json();
 
