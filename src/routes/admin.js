@@ -22,15 +22,34 @@ module.exports = async function adminRoutes(fastify) {
 
   fastify.get('/admin/users', async (req, reply) => {
     const db = getDb();
+    const { sort = 'created', dir = 'desc', page: pageStr = '1', per: perStr = '50' } = req.query || {};
+    const validSorts = {
+      email: 'u.email', tier: 't.display_name', records: 'record_count',
+      custom_domains: 'custom_domain_count', verified: 'u.email_verified',
+      status: 'u.is_disabled', created: 'u.created_at',
+    };
+    const sortCol = validSorts[sort] || 'u.created_at';
+    const sortDir = dir === 'asc' ? 'ASC' : 'DESC';
+    const perPage = Math.min(Math.max(parseInt(perStr) || 50, 1), 500);
+    const page = Math.max(parseInt(pageStr) || 1, 1);
+    const offset = (page - 1) * perPage;
+
+    const total = db.prepare('SELECT COUNT(*) as n FROM users').get().n;
+    const totalPages = Math.max(Math.ceil(total / perPage), 1);
+
     const users = db.prepare(`
       SELECT u.*, t.display_name as tier_name,
         (SELECT COUNT(*) FROM ddns_records WHERE user_id = u.id) as record_count,
         (SELECT COUNT(*) FROM zones WHERE user_id = u.id) as custom_domain_count
       FROM users u JOIN tiers t ON t.id = u.tier_id
-      ORDER BY u.created_at DESC
-    `).all();
+      ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?
+    `).all(perPage, offset);
+
     const tiers = db.prepare('SELECT * FROM tiers ORDER BY sort_order').all();
-    return reply.view('admin/users.njk', { title: 'Users', users, tiers, flash: flash(req) });
+    return reply.view('admin/users.njk', {
+      title: 'Users', users, tiers, flash: flash(req),
+      total, totalPages, page, per: perPage, sort, dir,
+    });
   });
 
   fastify.get('/admin/users/:id/custom-domains', async (req, reply) => {
@@ -556,7 +575,15 @@ module.exports = async function adminRoutes(fastify) {
       ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?
     `).all(perPage, offset);
     const totalPages = Math.max(1, Math.ceil(total / perPage));
-    return reply.view('admin/stats.njk', { title: 'Stats', records, sort, dir, page: pageNum, per: perPage, total, totalPages });
+    // Lightweight list for sidebar selector (no pagination — all records for client-side filter)
+    const allRecords = db.prepare(`
+      SELECT r.id, r.subdomain, z.domain as zone_domain, u.email as user_email
+      FROM ddns_records r
+      JOIN zones z ON z.id = r.zone_id
+      JOIN users u ON u.id = r.user_id
+      ORDER BY r.subdomain ASC
+    `).all();
+    return reply.view('admin/stats.njk', { title: 'Stats', records, allRecords, sort, dir, page: pageNum, per: perPage, total, totalPages });
   });
 
   fastify.get('/admin/stats/data', async (req, reply) => {

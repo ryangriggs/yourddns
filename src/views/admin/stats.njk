@@ -18,32 +18,16 @@
   <div class="reports-layout">
     <div class="reports-sidebar">
       <div class="card">
-        <div class="card-header"><h3 class="card-title">Select Records</h3></div>
-        <div class="card-body p-0">
-          {% if total == 0 %}
-          <p class="p-4 text-muted">No records yet.</p>
-          {% else %}
-          <ul class="record-list">
-            {% for record in records %}
-            <li class="record-list-item">
-              <label class="record-checkbox-label">
-                <input type="checkbox" class="record-check" value="{{ record.id }}" onchange="updateChart()">
-                <span>
-                  <span class="record-fqdn">{{ record.subdomain }}<span class="text-muted">.{{ record.zone_domain }}</span></span><br>
-                  <span class="text-xs text-muted">{{ record.user_email }}</span>
-                </span>
-              </label>
-            </li>
-            {% endfor %}
-          </ul>
-          {% if totalPages > 1 %}
-          <div style="padding:8px 12px;border-top:1px solid var(--border-color);display:flex;gap:6px;align-items:center;font-size:0.8125rem">
-            {% if page > 1 %}<a href="?sort={{ sort }}&dir={{ dir }}&per={{ per }}&page={{ page - 1 }}" class="btn btn-xs btn-outline">←</a>{% endif %}
-            <span class="text-muted">{{ page }}/{{ totalPages }}</span>
-            {% if page < totalPages %}<a href="?sort={{ sort }}&dir={{ dir }}&per={{ per }}&page={{ page + 1 }}" class="btn btn-xs btn-outline">→</a>{% endif %}
+        <div class="card-header" style="flex-direction:column;align-items:stretch;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h3 class="card-title" style="margin:0">Select Records</h3>
+            <button type="button" class="btn btn-xs btn-outline" onclick="deselectAll()">Deselect All</button>
           </div>
-          {% endif %}
-          {% endif %}
+          <input type="text" id="sidebarFilter" class="form-input form-input-sm" placeholder="Filter by name or user…" oninput="renderSidebar()">
+        </div>
+        <div class="card-body p-0">
+          <ul class="record-list" id="sidebarList"></ul>
+          <div id="sidebarPager" style="padding:8px 12px;border-top:1px solid var(--border-color);display:none;gap:6px;align-items:center;font-size:0.8125rem"></div>
         </div>
       </div>
     </div>
@@ -71,7 +55,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="recordsTableCard" style="display:none">
         <div class="card-header">
           <h2 class="card-title">Records <span class="text-muted" style="font-size:0.8125rem;font-weight:400">{{ total }} total</span></h2>
           <span class="text-muted" style="font-size:0.8125rem">Per page:
@@ -124,21 +108,103 @@
 {% endblock %}
 {% block scripts %}
 <script>
+const ALL_RECORDS = {{ allRecords | dump | safe }};
+const selectedIds = new Set();
+const SIDEBAR_PER_PAGE = 20;
+let sidebarPage = 1;
+
 const COLORS = ['#2563eb','#16a34a','#d97706','#dc2626','#7c3aed','#0891b2','#be185d','#65a30d'];
 let chart = null, colorMap = {}, colorIdx = 0;
 const today = new Date(), weekAgo = new Date(today - 7*24*60*60*1000);
 const fmt = d => d.toISOString().split('T')[0];
 flatpickr('#fromDate', { defaultDate: weekAgo });
 flatpickr('#toDate',   { defaultDate: today });
+
 function getColor(id) { if (!colorMap[id]) colorMap[id] = COLORS[colorIdx++ % COLORS.length]; return colorMap[id]; }
+
+function getFiltered() {
+  const q = document.getElementById('sidebarFilter').value.toLowerCase().trim();
+  if (!q) return ALL_RECORDS;
+  return ALL_RECORDS.filter(r =>
+    (r.subdomain + '.' + r.zone_domain).toLowerCase().includes(q) ||
+    r.user_email.toLowerCase().includes(q)
+  );
+}
+
+function renderSidebar() {
+  const filtered = getFiltered();
+  // Always include selected records even if filtered out, appended at top
+  const selectedNotFiltered = ALL_RECORDS.filter(r => selectedIds.has(String(r.id)) && !filtered.find(f => f.id === r.id));
+  const displayList = [...selectedNotFiltered, ...filtered];
+  const totalPages = Math.max(1, Math.ceil(filtered.length / SIDEBAR_PER_PAGE));
+  if (sidebarPage > totalPages) sidebarPage = totalPages;
+  // Paginate only the filtered portion; selected-but-filtered-out always show
+  const pageSlice = filtered.slice((sidebarPage - 1) * SIDEBAR_PER_PAGE, sidebarPage * SIDEBAR_PER_PAGE);
+  const toShow = [...selectedNotFiltered, ...pageSlice];
+
+  const list = document.getElementById('sidebarList');
+  list.innerHTML = toShow.map(r => {
+    const id = String(r.id);
+    const checked = selectedIds.has(id) ? 'checked' : '';
+    const pinned = selectedNotFiltered.find(s => s.id === r.id) ? ' style="background:var(--bg-hover,#f9fafb)"' : '';
+    return `<li class="record-list-item"${pinned}>
+      <label class="record-checkbox-label">
+        <input type="checkbox" class="record-check" value="${id}" ${checked} onchange="toggleRecord(this)">
+        <span>
+          <span class="record-fqdn">${escHtml(r.subdomain)}<span class="text-muted">.${escHtml(r.zone_domain)}</span></span><br>
+          <span class="text-xs text-muted">${escHtml(r.user_email)}</span>
+        </span>
+      </label>
+    </li>`;
+  }).join('');
+
+  // Pager
+  const pager = document.getElementById('sidebarPager');
+  if (totalPages > 1) {
+    pager.style.display = 'flex';
+    pager.innerHTML =
+      (sidebarPage > 1 ? `<button type="button" class="btn btn-xs btn-outline" onclick="setSidebarPage(${sidebarPage-1})">←</button>` : '') +
+      `<span class="text-muted" style="flex:1;text-align:center">${sidebarPage}/${totalPages}</span>` +
+      (sidebarPage < totalPages ? `<button type="button" class="btn btn-xs btn-outline" onclick="setSidebarPage(${sidebarPage+1})">→</button>` : '');
+  } else {
+    pager.style.display = 'none';
+  }
+}
+
+function setSidebarPage(p) { sidebarPage = p; renderSidebar(); }
+
+function toggleRecord(cb) {
+  if (cb.checked) selectedIds.add(cb.value); else selectedIds.delete(cb.value);
+  updateSelectionUI();
+}
+
+function deselectAll() {
+  selectedIds.clear();
+  renderSidebar();
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  const hasSelection = selectedIds.size > 0;
+  document.getElementById('recordsTableCard').style.display = hasSelection ? '' : 'none';
+  if (!hasSelection) {
+    document.getElementById('chartEmpty').style.display = '';
+    document.getElementById('chartWrap').style.display = 'none';
+    if (chart) { chart.destroy(); chart = null; }
+  }
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 function fillDates(from, to, data) {
   const map = {}; for (const d of data) map[d.day] = d.count;
   const result = [], labels = [], cur = new Date(from), end = new Date(to);
   while (cur <= end) { const k = fmt(cur); labels.push(k); result.push(map[k]||0); cur.setDate(cur.getDate()+1); }
   return { labels, values: result };
 }
+
 async function updateChart() {
-  const checked = [...document.querySelectorAll('.record-check:checked')].map(c => c.value);
+  const checked = [...selectedIds];
   const from = document.getElementById('fromDate').value || fmt(weekAgo);
   const to = document.getElementById('toDate').value || fmt(today);
   if (!checked.length) { document.getElementById('chartEmpty').style.display=''; document.getElementById('chartWrap').style.display='none'; if(chart){chart.destroy();chart=null;} return; }
@@ -153,5 +219,8 @@ async function updateChart() {
   if(chart)chart.destroy();
   chart=new Chart(document.getElementById('hitsChart'),{type:'line',data:{labels:allLabels,datasets:cd},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}}}});
 }
+
+// Init
+renderSidebar();
 </script>
 {% endblock %}

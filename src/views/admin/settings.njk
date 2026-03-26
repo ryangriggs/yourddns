@@ -51,14 +51,10 @@
                 <p style="font-size:0.875rem;margin:0 0 6px">Using emoji fallback: <strong>{{ settings.favicon_emoji.value }}</strong></p>
                 {% endif %}
                 <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-                  <form method="post" action="/admin/settings/favicon" enctype="multipart/form-data" style="display:flex;gap:0.5rem;align-items:center">
-                    <input type="file" name="file" accept=".svg,image/svg+xml" required style="font-size:0.8125rem">
-                    <button type="submit" class="btn btn-sm btn-outline">Upload SVG</button>
-                  </form>
+                  <input type="file" id="faviconFile" accept=".svg,image/svg+xml" style="font-size:0.8125rem">
+                  <button type="button" class="btn btn-sm btn-outline" onclick="uploadFavicon()">Upload SVG</button>
                   {% if settings.favicon_svg.value %}
-                  <form method="post" action="/admin/settings/favicon/clear" onsubmit="return confirm('Remove custom favicon and revert to emoji?')">
-                    <button type="submit" class="btn btn-sm btn-danger">Remove</button>
-                  </form>
+                  <button type="button" class="btn btn-sm btn-danger" onclick="clearFavicon()">Remove</button>
                   {% endif %}
                 </div>
               </div>
@@ -315,6 +311,20 @@ function openEditTier(id) {
   form.querySelector('[name=max_custom_domains]').value = tier.max_custom_domains || 0;
   form.querySelector('[name=max_records_per_day]').value = tier.max_records_per_day || 10;
   openModal('editTierModal');
+}
+
+async function uploadFavicon() {
+  const fileInput = document.getElementById('faviconFile');
+  if (!fileInput.files.length) { alert('Please select an SVG file.'); return; }
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  const res = await fetch('/admin/settings/favicon', { method: 'POST', body: fd, redirect: 'follow' });
+  window.location.href = res.url || '/admin/settings#settings-site';
+}
+async function clearFavicon() {
+  if (!confirm('Remove custom favicon and revert to emoji?')) return;
+  const res = await fetch('/admin/settings/favicon/clear', { method: 'POST', redirect: 'follow' });
+  window.location.href = res.url || '/admin/settings#settings-site';
 }
 
 // Highlight active section in sidenav as user scrolls
