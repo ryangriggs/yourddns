@@ -2,6 +2,9 @@
 
 Self-hosted Dynamic DNS service built for developers. Multi-user, API-driven, with custom domain support and a clean dashboard.
 
+# Use our instance instead of running your own
+** We offer a running instance at (yourddns.com), free to use! **
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/ryangriggs?label=Sponsor&logo=GitHub)](https://github.com/sponsors/ryangriggs)
 
