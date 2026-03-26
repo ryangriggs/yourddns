@@ -108,6 +108,23 @@
       </div>
     </div>
 
+    <div class="card mb-4" id="backup">
+      <div class="card-header"><h2 class="card-title">Backups</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">Auto-backup every (hours)</label>
+          <input type="number" name="backup_interval_hours" class="form-input" value="{{ settings.backup_interval_hours.value }}" min="0" style="max-width:120px">
+          <p class="form-hint">Automatically create a backup at this interval. Set to 0 to disable scheduled backups.</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Delete backups older than (days)</label>
+          <input type="number" name="backup_retention_days" class="form-input" value="{{ settings.backup_retention_days.value }}" min="0" style="max-width:120px">
+          <p class="form-hint">Backups older than this many days are pruned automatically. Set to 0 to keep forever.</p>
+        </div>
+        <p class="form-hint"><a href="/admin/backups">Manage backups &rarr;</a></p>
+      </div>
+    </div>
+
     <div class="card mb-4">
       <div class="card-header"><h2 class="card-title">Subscriptions &amp; Billing</h2></div>
       <div class="card-body">

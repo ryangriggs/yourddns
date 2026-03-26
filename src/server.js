@@ -13,6 +13,7 @@ const { version } = require('../package.json');
 const { startDnsServer } = require('./dns-server');
 const SQLiteSessionStore = require('./plugins/session-store');
 const { startMaintenanceJob } = require('./services/maintenance');
+const { startBackupJob } = require('./services/backup');
 
 async function build() {
   // ── Plugins ──────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ async function build() {
   });
 
   await fastify.register(require('@fastify/formbody'));
+  await fastify.register(require('@fastify/multipart'), { limits: { fileSize: 200 * 1024 * 1024 } }); // 200MB max restore file
 
   await fastify.register(require('@fastify/cookie'));
 
@@ -191,6 +193,7 @@ async function start() {
   console.log(`[web] Listening on ${host}:${port}`);
   startDnsServer();
   startMaintenanceJob();
+  startBackupJob();
 }
 
 start().catch(err => {

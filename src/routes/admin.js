@@ -1,7 +1,10 @@
 'use strict';
 
+const path = require('path');
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
-const { getDb, getSetting, getAllSettings, setSetting, withTransaction } = require('../db/index');
+const { getDb, getSetting, getAllSettings, setSetting, withTransaction, restoreFromFile } = require('../db/index');
+const { createBackup, pruneBackups, listBackups, BACKUP_DIR } = require('../services/backup');
 
 function flash(req) {
   const f = req.session.flash;
@@ -305,7 +308,7 @@ module.exports = async function adminRoutes(fastify) {
   });
 
   fastify.post('/admin/settings', async (req, reply) => {
-    const textFields = ['site_name','site_domain','site_url','site_ip','support_email','otp_resend_interval_minutes','otp_max_attempts_per_hour','password_max_attempts_per_hour','stripe_publishable_key','news_content','global_min_ttl','ns_primary','ns_secondary','zone_validation_timeout_hours','github_sponsors_url','paypal_donation_url'];
+    const textFields = ['site_name','site_domain','site_url','site_ip','support_email','otp_resend_interval_minutes','otp_max_attempts_per_hour','password_max_attempts_per_hour','stripe_publishable_key','news_content','global_min_ttl','ns_primary','ns_secondary','zone_validation_timeout_hours','github_sponsors_url','paypal_donation_url','backup_interval_hours','backup_retention_days'];
     const checkboxFields = ['registration_enabled','stripe_enabled','subscriptions_enabled'];
     for (const key of textFields) {
       if (req.body[key] !== undefined) setSetting(key, req.body[key]);
@@ -341,6 +344,115 @@ module.exports = async function adminRoutes(fastify) {
     db.prepare('DELETE FROM tiers WHERE id = ?').run(req.params.id);
     req.session.flash = { type: 'success', message: 'Tier deleted.' };
     return reply.redirect('/admin/settings');
+  });
+
+  // ── Backups ────────────────────────────────────────────────────────────────
+
+  fastify.get('/admin/backups', async (req, reply) => {
+    const backups = listBackups();
+    const intervalHours = getSetting('backup_interval_hours') || '24';
+    const retentionDays = getSetting('backup_retention_days') || '30';
+    return reply.view('admin/backups.njk', { title: 'Backups', backups, intervalHours, retentionDays, flash: flash(req) });
+  });
+
+  fastify.post('/admin/backups/create', async (req, reply) => {
+    try {
+      createBackup();
+      pruneBackups();
+      req.session.flash = { type: 'success', message: 'Backup created.' };
+    } catch (err) {
+      req.session.flash = { type: 'error', message: `Backup failed: ${err.message}` };
+    }
+    return reply.redirect('/admin/backups');
+  });
+
+  fastify.get('/admin/backups/:filename/download', async (req, reply) => {
+    const filename = req.params.filename;
+    // Path traversal protection: filename must match expected pattern only
+    if (!/^yourddns_backup_[\d\-T]+Z\.zip$/.test(filename)) {
+      return reply.code(400).send('Invalid filename');
+    }
+    const filePath = path.join(BACKUP_DIR, filename);
+    if (!fs.existsSync(filePath)) return reply.code(404).send('Not found');
+    const stat = fs.statSync(filePath);
+    reply.header('Content-Type', 'application/zip');
+    reply.header('Content-Disposition', `attachment; filename="${filename}"`);
+    reply.header('Content-Length', stat.size);
+    return reply.send(fs.createReadStream(filePath));
+  });
+
+  fastify.post('/admin/backups/:filename/delete', async (req, reply) => {
+    const filename = req.params.filename;
+    if (!/^yourddns_backup_[\d\-T]+Z\.zip$/.test(filename)) {
+      req.session.flash = { type: 'error', message: 'Invalid filename.' };
+      return reply.redirect('/admin/backups');
+    }
+    const filePath = path.join(BACKUP_DIR, filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    req.session.flash = { type: 'success', message: 'Backup deleted.' };
+    return reply.redirect('/admin/backups');
+  });
+
+  fastify.post('/admin/backups/restore', async (req, reply) => {
+    let tmpPath = null;
+    try {
+      const data = await req.file();
+      if (!data) {
+        req.session.flash = { type: 'error', message: 'No file uploaded.' };
+        return reply.redirect('/admin/backups');
+      }
+
+      // Save upload to a temp file
+      const AdmZip = require('adm-zip');
+      const os = require('os');
+      tmpPath = path.join(os.tmpdir(), `yourddns_restore_${Date.now()}.zip`);
+      const chunks = [];
+      for await (const chunk of data.file) chunks.push(chunk);
+      const buf = Buffer.concat(chunks);
+      fs.writeFileSync(tmpPath, buf);
+
+      // Validate it's a ZIP containing yourddns.db
+      let zip;
+      try {
+        zip = new AdmZip(tmpPath);
+      } catch {
+        req.session.flash = { type: 'error', message: 'Invalid ZIP file.' };
+        return reply.redirect('/admin/backups');
+      }
+      const entry = zip.getEntry('yourddns.db');
+      if (!entry) {
+        req.session.flash = { type: 'error', message: 'ZIP does not contain yourddns.db.' };
+        return reply.redirect('/admin/backups');
+      }
+
+      // Extract DB to temp file and validate SQLite magic bytes
+      const dbTmpPath = path.join(os.tmpdir(), `yourddns_restore_${Date.now()}.db`);
+      fs.writeFileSync(dbTmpPath, entry.getData());
+      const magic = Buffer.alloc(16);
+      const fd = fs.openSync(dbTmpPath, 'r');
+      fs.readSync(fd, magic, 0, 16, 0);
+      fs.closeSync(fd);
+      if (magic.toString('ascii', 0, 15) !== 'SQLite format 3') {
+        fs.unlinkSync(dbTmpPath);
+        req.session.flash = { type: 'error', message: 'File does not appear to be a valid SQLite database.' };
+        return reply.redirect('/admin/backups');
+      }
+
+      // Create a safety backup before overwriting
+      try { createBackup(); } catch {}
+
+      await restoreFromFile(dbTmpPath);
+      fs.unlinkSync(dbTmpPath);
+
+      req.session.flash = { type: 'success', message: 'Database restored successfully. You may need to log in again.' };
+      return reply.redirect('/admin/backups');
+    } catch (err) {
+      fastify.log.error(err);
+      req.session.flash = { type: 'error', message: `Restore failed: ${err.message}` };
+      return reply.redirect('/admin/backups');
+    } finally {
+      if (tmpPath && fs.existsSync(tmpPath)) { try { fs.unlinkSync(tmpPath); } catch {} }
+    }
   });
 
   // ── Stats (admin version) ──────────────────────────────────────────────────

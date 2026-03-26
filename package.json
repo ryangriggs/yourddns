@@ -1,6 +1,6 @@
 {
   "name": "yourddns",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Self-hosted dynamic DNS service",
   "main": "src/server.js",
   "scripts": {
@@ -12,18 +12,20 @@
     "@fastify/cookie": "^9.4.0",
     "@fastify/formbody": "^7.4.0",
     "@fastify/helmet": "^11.1.1",
+    "@fastify/multipart": "^9.4.0",
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/session": "^10.9.0",
     "@fastify/static": "^7.0.4",
     "@fastify/view": "^9.1.0",
+    "adm-zip": "^0.5.16",
     "bcryptjs": "^2.4.3",
     "dns2": "^2.1.0",
     "dotenv": "^16.4.5",
     "fastify": "^4.27.0",
+    "fastify-plugin": "^4.5.1",
     "nunjucks": "^3.2.4",
     "resend": "^3.2.0",
-    "stripe": "^14.21.0",
-    "fastify-plugin": "^4.5.1"
+    "stripe": "^14.21.0"
   },
   "engines": {
     "node": ">=18.0.0"

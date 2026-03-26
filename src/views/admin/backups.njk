@@ -1,0 +1,78 @@
+{% extends "layouts/admin.njk" %}
+{% set activePage = 'backups' %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">Backups</h1>
+    <form method="POST" action="/admin/backups/create">
+      <button type="submit" class="btn btn-primary">+ Create Backup Now</button>
+    </form>
+  </div>
+
+  {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  <div class="settings-grid">
+
+    {# Backup list #}
+    <div class="settings-card" style="grid-column: 1 / -1;">
+      <div class="settings-card-header">
+        <h2 class="settings-card-title">Available Backups</h2>
+        <p class="settings-card-desc">Scheduled every {{ intervalHours }} hours &mdash; kept for {{ retentionDays }} days. Configure in <a href="/admin/settings#backup">Settings</a>.</p>
+      </div>
+
+      {% if backups | length == 0 %}
+      <div class="empty-state"><p class="text-muted">No backups yet. Click "Create Backup Now" to create one.</p></div>
+      {% else %}
+      <div class="table-card" style="margin:0;border:none;box-shadow:none;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Filename</th>
+              <th>Size</th>
+              <th>Created</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in backups %}
+            <tr>
+              <td class="font-mono" style="font-size:0.8rem">{{ b.filename }}</td>
+              <td>{{ (b.size / 1024) | round(1) }} KB</td>
+              <td>{{ b.created_at | date }}</td>
+              <td class="text-right" style="white-space:nowrap">
+                <a href="/admin/backups/{{ b.filename }}/download" class="btn btn-sm btn-outline" download>Download</a>
+                <form method="POST" action="/admin/backups/{{ b.filename }}/delete" style="display:inline" onsubmit="return confirm('Delete this backup?')">
+                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+
+    {# Restore #}
+    <div class="settings-card" style="grid-column: 1 / -1;">
+      <div class="settings-card-header">
+        <h2 class="settings-card-title">Restore from Backup</h2>
+        <p class="settings-card-desc">
+          Upload a <code>.zip</code> backup file to restore the database. A safety backup of the current database will be created automatically before the restore begins.
+          <strong>All users will be logged out after restore.</strong>
+        </p>
+      </div>
+      <form method="POST" action="/admin/backups/restore" enctype="multipart/form-data" onsubmit="return confirm('This will replace the current database with the backup. A safety backup will be created first. Continue?')">
+        <div class="form-group" style="padding: 1rem 1.5rem;">
+          <label class="form-label">Backup ZIP file</label>
+          <input type="file" name="file" accept=".zip" required class="form-control">
+        </div>
+        <div style="padding: 0 1.5rem 1.5rem;">
+          <button type="submit" class="btn btn-danger">Restore Database</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -79,6 +79,8 @@ async function initDb() {
   ensureSettings.run('subscriptions_enabled',         'false',                                         'Show paid plans and upgrade prompts');
   ensureSettings.run('github_sponsors_url',           'https://github.com/sponsors/ryangriggs',        'GitHub Sponsors link shown on the /donate page');
   ensureSettings.run('paypal_donation_url',           '',                                              'PayPal donation link shown on the /donate page (optional)');
+  ensureSettings.run('backup_interval_hours',         '24',                                            'Auto-backup every X hours (0 = disabled)');
+  ensureSettings.run('backup_retention_days',         '30',                                            'Delete backups older than X days (0 = keep forever)');
 
   // zone_api_keys — added when zone API was introduced
   const apiKeyTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='zone_api_keys'").get();
@@ -130,6 +132,8 @@ async function seedDefaultData() {
     ['subscriptions_enabled',       'false', 'Show paid plans and upgrade prompts'],
     ['github_sponsors_url',         'https://github.com/sponsors/ryangriggs', 'GitHub Sponsors link shown on the /donate page'],
     ['paypal_donation_url',         '',      'PayPal donation link shown on the /donate page (optional)'],
+    ['backup_interval_hours',       '24',   'Auto-backup every X hours (0 = disabled)'],
+    ['backup_retention_days',       '30',   'Delete backups older than X days (0 = keep forever)'],
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
     ['news_content',                '', 'News/announcement block shown on landing page'],
@@ -159,6 +163,21 @@ async function bootstrapAdmin() {
   console.log(`[db] Admin user created: ${adminEmail}`);
 }
 
+function closeDb() {
+  if (db) {
+    try { db.exec('PRAGMA wal_checkpoint(FULL)'); } catch {}
+    try { db.close(); } catch {}
+    db = null;
+  }
+}
+
+async function restoreFromFile(newDbFilePath) {
+  closeDb();
+  const dbPath = process.env.DB_PATH || './data/yourddns.db';
+  fs.copyFileSync(newDbFilePath, dbPath);
+  await initDb();
+}
+
 function getSetting(key) {
   const row = db.prepare('SELECT value FROM admin_settings WHERE key = ?').get(key);
   return row ? row.value : null;
@@ -178,4 +197,4 @@ function setSetting(key, value) {
   `).run(key, value, key);
 }
 
-module.exports = { initDb, getDb, getSetting, getAllSettings, setSetting, withTransaction };
+module.exports = { initDb, getDb, getSetting, getAllSettings, setSetting, withTransaction, closeDb, restoreFromFile };
