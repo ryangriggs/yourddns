@@ -8,9 +8,9 @@
 
 # Main site
 {$SITE_DOMAIN:yourddns.com} {
-	# NOTE: uses localhost because the app runs with network_mode: host.
+	# NOTE: uses host.docker.internal because the app runs with network_mode: host.
 	# Change back to app:3000 if reverting to bridge networking on Windows/Mac.
-	reverse_proxy localhost:3000 {
+	reverse_proxy host.docker.internal:3000 {
 		header_up X-Real-IP {remote_host}
 	}
 }
