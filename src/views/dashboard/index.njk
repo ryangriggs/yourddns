@@ -1,7 +1,7 @@
 {% extends "layouts/base.njk" %}
 {% set activePage = 'dashboard' %}
 {% block content %}
-{% if githubSponsorsUrl or paypalDonationUrl %}
+{% if (githubSponsorsUrl or paypalDonationUrl) and records | length > 0 %}
 <div class="donation-banner" id="donationBanner">
   <span>YourDDNS is free and open-source. If it's useful to you, consider supporting the project.</span>
   <div class="donation-banner-actions">
@@ -125,19 +125,22 @@
     </div>
     <form method="post" action="/dashboard/records" class="modal-body">
       <div class="form-group">
-        <label class="form-label" for="subdomain">Subdomain</label>
-        <input type="text" id="subdomain" name="subdomain" class="form-input" required
-          placeholder="myhome" pattern="[a-zA-Z0-9-]+" minlength="{{ tier.min_subdomain_length }}"
-          title="Letters, numbers, and hyphens only.">
-        <p class="form-hint" id="subdomainHint">Min {{ tier.min_subdomain_length }} characters. Letters, numbers, hyphens only.</p>
-      </div>
-      <div class="form-group">
         <label class="form-label" for="zone_id">Zone</label>
-        <select id="zone_id" name="zone_id" class="form-select" required onchange="updateSubdomainHint()">
+        <select id="zone_id" name="zone_id" class="form-select" required onchange="onZoneChange()">
           {% for zone in zones %}
           <option value="{{ zone.id }}" data-custom="{{ 'true' if zone.user_id else 'false' }}">{{ zone.domain }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="subdomain">Subdomain</label>
+        <div class="input-check-wrap">
+          <input type="text" id="subdomain" name="subdomain" class="form-input" required
+            placeholder="myhome" pattern="[a-zA-Z0-9-]+" minlength="{{ tier.min_subdomain_length }}"
+            title="Letters, numbers, and hyphens only." oninput="scheduleCheck()" autocomplete="off" autocorrect="off" spellcheck="false">
+          <span id="subdomainStatus" class="input-check-status"></span>
+        </div>
+        <p class="form-hint" id="subdomainHint">Min {{ tier.min_subdomain_length }} characters. Letters, numbers, hyphens only.</p>
       </div>
       <div class="form-group">
         <label class="form-label" for="ip">IPv4 Address <span class="text-muted">(optional)</span></label>
@@ -158,7 +161,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" onclick="closeModal('createModal')">Cancel</button>
-        <button type="submit" class="btn btn-primary">Create record</button>
+        <button type="submit" class="btn btn-primary" id="createSubmitBtn">Create record</button>
       </div>
     </form>
   </div>
@@ -243,7 +246,10 @@ function openEditRecord(id) {
   document.getElementById('editTtl').value = r.ttl;
   openModal('editModal');
 }
-function updateSubdomainHint() {
+let checkTimer = null;
+let lastChecked = '';
+
+function onZoneChange() {
   const sel = document.getElementById('zone_id');
   const opt = sel.options[sel.selectedIndex];
   const input = document.getElementById('subdomain');
@@ -255,6 +261,62 @@ function updateSubdomainHint() {
   } else {
     input.setAttribute('minlength', '{{ tier.min_subdomain_length }}');
     hint.textContent = 'Min {{ tier.min_subdomain_length }} characters. Letters, numbers, hyphens only.';
+  }
+  // Re-check with new zone
+  lastChecked = '';
+  scheduleCheck();
+}
+
+function scheduleCheck() {
+  clearTimeout(checkTimer);
+  const val = document.getElementById('subdomain').value.trim();
+  if (!val) { setCheckStatus(''); return; }
+  setCheckStatus('checking');
+  checkTimer = setTimeout(runCheck, 350);
+}
+
+function runCheck() {
+  const subdomain = document.getElementById('subdomain').value.trim();
+  const zone_id = document.getElementById('zone_id').value;
+  const key = subdomain + '|' + zone_id;
+  if (key === lastChecked) return;
+  lastChecked = key;
+
+  fetch('/dashboard/records/check?' + new URLSearchParams({ subdomain, zone_id }))
+    .then(r => r.json())
+    .then(data => {
+      // Ignore stale results if input changed
+      if (document.getElementById('subdomain').value.trim() !== subdomain) return;
+      if (data.available) {
+        setCheckStatus('available');
+      } else if (data.reason && data.reason !== 'missing') {
+        setCheckStatus('unavailable', data.reason);
+      } else {
+        setCheckStatus('');
+      }
+    })
+    .catch(() => setCheckStatus(''));
+}
+
+function setCheckStatus(state, message) {
+  const el = document.getElementById('subdomainStatus');
+  const btn = document.getElementById('createSubmitBtn');
+  if (state === 'checking') {
+    el.className = 'input-check-status checking';
+    el.textContent = '…';
+    btn.disabled = true;
+  } else if (state === 'available') {
+    el.className = 'input-check-status available';
+    el.textContent = '✓ Available';
+    btn.disabled = false;
+  } else if (state === 'unavailable') {
+    el.className = 'input-check-status unavailable';
+    el.textContent = '✗ ' + (message || 'Not available');
+    btn.disabled = true;
+  } else {
+    el.className = 'input-check-status';
+    el.textContent = '';
+    btn.disabled = false;
   }
 }
 function showTab(name) {

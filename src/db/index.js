@@ -64,6 +64,10 @@ async function initDb() {
   if (!tierCols.includes('max_custom_domains')) {
     db.exec('ALTER TABLE tiers ADD COLUMN max_custom_domains INTEGER NOT NULL DEFAULT 0');
   }
+  if (!tierCols.includes('max_records_per_day')) {
+    db.exec('ALTER TABLE tiers ADD COLUMN max_records_per_day INTEGER NOT NULL DEFAULT 10');
+    console.log('[db] Migration: added max_records_per_day to tiers');
+  }
 
   // Ensure new settings exist on existing deployments (INSERT OR IGNORE — safe to always run)
   const ensureSettings = db.prepare('INSERT OR IGNORE INTO admin_settings (key, value, description) VALUES (?, ?, ?)');
@@ -76,6 +80,23 @@ async function initDb() {
   ensureSettings.run('github_sponsors_url',           'https://github.com/sponsors/ryangriggs',        'GitHub Sponsors link shown on the /donate page');
   ensureSettings.run('paypal_donation_url',           '',                                              'PayPal donation link shown on the /donate page (optional)');
 
+  // zone_api_keys — added when zone API was introduced
+  const apiKeyTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='zone_api_keys'").get();
+  if (!apiKeyTables) {
+    db.exec(`CREATE TABLE IF NOT EXISTS zone_api_keys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      zone_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      key_hash TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_used_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (zone_id) REFERENCES zones(id) ON DELETE CASCADE
+    )`);
+    console.log('[db] Migration: created zone_api_keys table');
+  }
+
   await seedDefaultData();
   await bootstrapAdmin();
   return db;
@@ -86,14 +107,15 @@ async function seedDefaultData() {
   if (existing.c > 0) return;
 
   const insertTier = db.prepare(`
-    INSERT OR IGNORE INTO tiers (name, display_name, max_entries, min_ttl, max_resolutions_per_hour, max_updates_per_hour, min_subdomain_length, history_days, price_monthly, sort_order, max_custom_domains)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO tiers (name, display_name, max_entries, min_ttl, max_resolutions_per_hour, max_updates_per_hour, min_subdomain_length, history_days, price_monthly, sort_order, max_custom_domains, max_records_per_day)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   withTransaction(() => {
-    insertTier.run('free',    'Free',    3,   300, 1000,  10, 4, 7,   0,    0, 0);
-    insertTier.run('starter', 'Starter', 10,  120, 5000,  30, 3, 30,  500,  1, 1);
-    insertTier.run('pro',     'Pro',     50,  60,  20000, 60, 2, 90,  1500, 2, 5);
+    //                name      display   ent  ttl  res/hr  upd/hr  sublen hist  price ord  cdom  rec/day
+    insertTier.run('free',    'Free',    3,   300, 1000,  10,     4,     7,   0,    0,   0,    3);
+    insertTier.run('starter', 'Starter', 10,  120, 5000,  30,     3,     30,  500,  1,   1,    10);
+    insertTier.run('pro',     'Pro',     50,  60,  20000, 60,     2,     90,  1500, 2,   5,    50);
   });
 
   const settings = [

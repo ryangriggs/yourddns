@@ -59,6 +59,42 @@ module.exports = async function dashboardRoutes(fastify) {
     });
   });
 
+  // GET /dashboard/records/check — real-time subdomain availability
+  fastify.get('/dashboard/records/check', async (req, reply) => {
+    const { subdomain, zone_id } = req.query || {};
+    if (!subdomain || !zone_id) return reply.send({ available: false, reason: 'missing' });
+
+    const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (sub !== subdomain.trim().toLowerCase()) {
+      return reply.send({ available: false, reason: 'Letters, numbers, and hyphens only.' });
+    }
+    if (sub.length === 0) return reply.send({ available: false, reason: 'missing' });
+
+    const db = getDb();
+
+    // Verify zone is accessible to this user
+    const zone = db.prepare(`
+      SELECT z.* FROM zones z
+      LEFT JOIN zone_tiers zt ON zt.zone_id = z.id AND zt.tier_id = ?
+      WHERE z.id = ? AND z.is_active = 1 AND z.validated = 1
+        AND ((z.user_id IS NULL AND zt.zone_id IS NOT NULL) OR z.user_id = ?)
+    `).get(req.user.tier_id, zone_id, req.user.id);
+    if (!zone) return reply.send({ available: false, reason: 'Zone not available.' });
+
+    const isCustomZone = zone.user_id === req.user.id;
+    if (!isCustomZone) {
+      const minLen = req.user.min_subdomain_length || 4;
+      if (sub.length < minLen) {
+        return reply.send({ available: false, reason: `Min ${minLen} characters on your plan.` });
+      }
+    }
+
+    const exists = db.prepare('SELECT id FROM ddns_records WHERE zone_id = ? AND LOWER(subdomain) = ?').get(zone_id, sub);
+    if (exists) return reply.send({ available: false, reason: 'Already taken.' });
+
+    return reply.send({ available: true });
+  });
+
   // POST /dashboard/records  — create
   fastify.post('/dashboard/records', async (req, reply) => {
     const db = getDb();
@@ -83,6 +119,16 @@ module.exports = async function dashboardRoutes(fastify) {
     const count = db.prepare('SELECT COUNT(*) as c FROM ddns_records WHERE user_id = ?').get(req.user.id).c;
     if (count >= req.user.max_entries) {
       req.session.flash = { type: 'error', message: `Your ${req.user.tier_display_name} plan allows up to ${req.user.max_entries} records. Please upgrade to add more.` };
+      return reply.redirect('/dashboard');
+    }
+
+    // Check daily creation rate limit
+    const maxPerDay = req.user.max_records_per_day || 10;
+    const createdToday = db.prepare(
+      "SELECT COUNT(*) as c FROM ddns_records WHERE user_id = ? AND created_at >= datetime('now', '-1 day')"
+    ).get(req.user.id).c;
+    if (createdToday >= maxPerDay) {
+      req.session.flash = { type: 'error', message: `You can create up to ${maxPerDay} records per day on your plan. Try again tomorrow.` };
       return reply.redirect('/dashboard');
     }
 
@@ -329,5 +375,68 @@ module.exports = async function dashboardRoutes(fastify) {
     db.prepare("DELETE FROM oauth_accounts WHERE user_id = ? AND provider = 'google'").run(req.user.id);
     req.session.flash = { type: 'success', message: 'Google account unlinked.' };
     return reply.redirect('/dashboard/profile');
+  });
+
+  // GET /dashboard/api-keys
+  fastify.get('/dashboard/api-keys', async (req, reply) => {
+    const db = getDb();
+    const keys = db.prepare(`
+      SELECT k.*, z.domain as zone_domain
+      FROM zone_api_keys k
+      JOIN zones z ON z.id = k.zone_id
+      WHERE k.user_id = ?
+      ORDER BY k.created_at DESC
+    `).all(req.user.id);
+
+    const zones = db.prepare(`
+      SELECT * FROM zones WHERE user_id = ? AND validated = 1 ORDER BY domain
+    `).all(req.user.id);
+
+    const flash = req.session.flash;
+    const newKey = req.session.newApiKey;
+    delete req.session.flash;
+    delete req.session.newApiKey;
+
+    return reply.view('dashboard/api-keys.njk', {
+      title: 'API Keys',
+      keys,
+      zones,
+      flash,
+      newKey,
+      siteUrl: getSetting('site_url') || '',
+    });
+  });
+
+  // POST /dashboard/api-keys
+  fastify.post('/dashboard/api-keys', async (req, reply) => {
+    const { zone_id, name } = req.body || {};
+    if (!zone_id || !name || !name.trim()) {
+      req.session.flash = { type: 'error', message: 'Zone and key name are required.' };
+      return reply.redirect('/dashboard/api-keys');
+    }
+
+    const db = getDb();
+    const zone = db.prepare('SELECT * FROM zones WHERE id = ? AND user_id = ? AND validated = 1').get(zone_id, req.user.id);
+    if (!zone) {
+      req.session.flash = { type: 'error', message: 'Zone not found or not validated.' };
+      return reply.redirect('/dashboard/api-keys');
+    }
+
+    const rawKey = generatePat().replace('yddns_', 'zak_');
+    const keyHash = hashPat(rawKey);
+
+    db.prepare('INSERT INTO zone_api_keys (user_id, zone_id, name, key_hash) VALUES (?, ?, ?, ?)').run(req.user.id, zone.id, name.trim(), keyHash);
+
+    req.session.newApiKey = { key: rawKey, zone: zone.domain, name: name.trim() };
+    req.session.flash = { type: 'success', message: 'API key created. Copy it now — it will not be shown again.' };
+    return reply.redirect('/dashboard/api-keys');
+  });
+
+  // POST /dashboard/api-keys/:id/delete
+  fastify.post('/dashboard/api-keys/:id/delete', async (req, reply) => {
+    const db = getDb();
+    db.prepare('DELETE FROM zone_api_keys WHERE id = ? AND user_id = ?').run(req.params.id, req.user.id);
+    req.session.flash = { type: 'success', message: 'API key deleted.' };
+    return reply.redirect('/dashboard/api-keys');
   });
 };

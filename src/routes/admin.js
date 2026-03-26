@@ -321,11 +321,11 @@ module.exports = async function adminRoutes(fastify) {
   // Tier management
   fastify.post('/admin/tiers', async (req, reply) => {
     const db = getDb();
-    const { id, name, display_name, max_entries, min_ttl, max_resolutions_per_hour, max_updates_per_hour, min_subdomain_length, history_days, price_monthly, stripe_price_id, sort_order, max_custom_domains } = req.body || {};
+    const { id, name, display_name, max_entries, min_ttl, max_resolutions_per_hour, max_updates_per_hour, min_subdomain_length, history_days, price_monthly, stripe_price_id, sort_order, max_custom_domains, max_records_per_day } = req.body || {};
     if (id) {
-      db.prepare(`UPDATE tiers SET display_name=?,max_entries=?,min_ttl=?,max_resolutions_per_hour=?,max_updates_per_hour=?,min_subdomain_length=?,history_days=?,price_monthly=?,stripe_price_id=?,sort_order=?,max_custom_domains=? WHERE id=?`).run(display_name,max_entries,min_ttl,max_resolutions_per_hour,max_updates_per_hour,min_subdomain_length,history_days,price_monthly,stripe_price_id||null,sort_order||0,max_custom_domains||0,id);
+      db.prepare(`UPDATE tiers SET display_name=?,max_entries=?,min_ttl=?,max_resolutions_per_hour=?,max_updates_per_hour=?,min_subdomain_length=?,history_days=?,price_monthly=?,stripe_price_id=?,sort_order=?,max_custom_domains=?,max_records_per_day=? WHERE id=?`).run(display_name,max_entries,min_ttl,max_resolutions_per_hour,max_updates_per_hour,min_subdomain_length,history_days,price_monthly,stripe_price_id||null,sort_order||0,max_custom_domains||0,max_records_per_day||10,id);
     } else {
-      db.prepare(`INSERT INTO tiers (name,display_name,max_entries,min_ttl,max_resolutions_per_hour,max_updates_per_hour,min_subdomain_length,history_days,price_monthly,stripe_price_id,sort_order,max_custom_domains) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(name,display_name,max_entries||3,min_ttl||300,max_resolutions_per_hour||1000,max_updates_per_hour||10,min_subdomain_length||4,history_days||7,price_monthly||0,stripe_price_id||null,sort_order||0,max_custom_domains||0);
+      db.prepare(`INSERT INTO tiers (name,display_name,max_entries,min_ttl,max_resolutions_per_hour,max_updates_per_hour,min_subdomain_length,history_days,price_monthly,stripe_price_id,sort_order,max_custom_domains,max_records_per_day) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(name,display_name,max_entries||3,min_ttl||300,max_resolutions_per_hour||1000,max_updates_per_hour||10,min_subdomain_length||4,history_days||7,price_monthly||0,stripe_price_id||null,sort_order||0,max_custom_domains||0,max_records_per_day||10);
     }
     req.session.flash = { type: 'success', message: 'Tier saved.' };
     return reply.redirect('/admin/settings');

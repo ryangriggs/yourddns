@@ -1,0 +1,201 @@
+{% extends "layouts/base.njk" %}
+{% set activePage = 'apikeys' %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1 class="page-title">API Keys</h1>
+    {% if zones | length > 0 %}
+    <button class="btn btn-primary" onclick="openModal('createKeyModal')">+ New Key</button>
+    {% endif %}
+  </div>
+
+  {% if flash %}
+  <div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>
+  {% endif %}
+
+  {% if newKey %}
+  <div class="alert alert-warning pat-reveal mb-4">
+    <div class="pat-reveal-header">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <strong>Copy your API key now — it will not be shown again</strong>
+    </div>
+    <p class="pat-record-name">Key: <strong>{{ newKey.name }}</strong> &nbsp;·&nbsp; Zone: <strong>{{ newKey.zone }}</strong></p>
+    <div class="pat-code-wrap">
+      <code class="pat-code" id="newKeyCode">{{ newKey.key }}</code>
+      <button class="btn btn-xs btn-outline" onclick="copyKey()">Copy</button>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if zones | length == 0 %}
+  <div class="empty-state">
+    <h3>No validated custom domains</h3>
+    <p>Zone API keys can only be created for your own validated custom domains. <a href="/dashboard/zones">Add and validate a domain</a> first.</p>
+  </div>
+  {% elif keys | length == 0 %}
+  <div class="empty-state">
+    <h3>No API keys yet</h3>
+    <p>Create a key to manage records in your custom zones via the API.</p>
+    <button class="btn btn-primary" onclick="openModal('createKeyModal')">+ New Key</button>
+  </div>
+  {% else %}
+  <div class="table-card mb-6">
+    <table class="table">
+      <thead>
+        <tr><th>Name</th><th>Zone</th><th>Created</th><th>Last Used</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for key in keys %}
+        <tr>
+          <td><strong>{{ key.name }}</strong></td>
+          <td class="mono">{{ key.zone_domain }}</td>
+          <td class="text-muted">{{ key.created_at | date }}</td>
+          <td class="text-muted">{{ key.last_used_at | date('relative') if key.last_used_at else 'Never' }}</td>
+          <td class="actions-cell">
+            <form method="post" action="/dashboard/api-keys/{{ key.id }}/delete"
+              onsubmit="return confirm('Delete key {{ key.name }}? Any scripts using it will stop working.')">
+              <button type="submit" class="btn btn-xs btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- API Documentation -->
+  <div class="card" id="api-docs">
+    <div class="card-header"><h2 class="card-title">API Reference</h2></div>
+    <div class="card-body" style="max-width:720px">
+
+      <h3 style="margin:0 0 0.5rem;font-size:1rem">Authentication</h3>
+      <p class="text-muted" style="margin-bottom:0.75rem">Pass your zone API key as a Bearer token or query parameter. Keys are scoped to a single zone.</p>
+      <pre class="code-block">Authorization: Bearer zak_&lt;your-key&gt;
+# or
+?key=zak_&lt;your-key&gt;</pre>
+
+      <h3 style="margin:1.5rem 0 0.5rem;font-size:1rem">Base URL</h3>
+      <pre class="code-block">{{ siteUrl }}/api/v1</pre>
+
+      <h3 style="margin:1.5rem 0 0.5rem;font-size:1rem">Endpoints</h3>
+
+      <div class="api-endpoint">
+        <div class="api-method get">GET</div>
+        <div class="api-path">/api/v1/zones</div>
+        <p class="api-desc">Returns zone info and record count for this key's zone.</p>
+        <pre class="code-block">curl -H "Authorization: Bearer zak_..." \
+  {{ siteUrl }}/api/v1/zones</pre>
+        <pre class="code-block">{ "zone": "example.com", "record_count": 3, "max_entries": 10 }</pre>
+      </div>
+
+      <div class="api-endpoint">
+        <div class="api-method get">GET</div>
+        <div class="api-path">/api/v1/zones/:zone/records</div>
+        <p class="api-desc">List all DDNS records in the zone.</p>
+        <pre class="code-block">curl -H "Authorization: Bearer zak_..." \
+  {{ siteUrl }}/api/v1/zones/example.com/records</pre>
+        <pre class="code-block">{
+  "zone": "example.com",
+  "records": [
+    { "subdomain": "home", "ip_address": "1.2.3.4", "ip6_address": null,
+      "ttl": 300, "is_enabled": 1, "hit_count": 42,
+      "created_at": "...", "last_update_received_at": "..." }
+  ]
+}</pre>
+      </div>
+
+      <div class="api-endpoint">
+        <div class="api-method post">POST</div>
+        <div class="api-path">/api/v1/zones/:zone/records</div>
+        <p class="api-desc">Create a new DDNS record. Returns the record's update API key — save it, it is shown only once.</p>
+        <pre class="code-block">curl -X POST \
+  -H "Authorization: Bearer zak_..." \
+  -H "Content-Type: application/json" \
+  -d '{"subdomain":"home","ip":"1.2.3.4","ttl":300}' \
+  {{ siteUrl }}/api/v1/zones/example.com/records</pre>
+        <pre class="code-block">{
+  "subdomain": "home",
+  "fqdn": "home.example.com",
+  "ip_address": "1.2.3.4",
+  "ip6_address": null,
+  "ttl": 300,
+  "api_key": "yddns_..."
+}</pre>
+        <table class="table table-sm" style="margin-top:0.75rem">
+          <thead><tr><th>Field</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">subdomain</td><td>Yes</td><td>The hostname to create (letters, numbers, hyphens)</td></tr>
+            <tr><td class="mono">ip</td><td>No</td><td>IPv4 address</td></tr>
+            <tr><td class="mono">ip6</td><td>No</td><td>IPv6 address</td></tr>
+            <tr><td class="mono">ttl</td><td>No</td><td>TTL in seconds (defaults to your plan minimum)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="api-endpoint">
+        <div class="api-method delete">DELETE</div>
+        <div class="api-path">/api/v1/zones/:zone/records/:subdomain</div>
+        <p class="api-desc">Delete a DDNS record.</p>
+        <pre class="code-block">curl -X DELETE \
+  -H "Authorization: Bearer zak_..." \
+  {{ siteUrl }}/api/v1/zones/example.com/records/home</pre>
+        <pre class="code-block">{ "deleted": true, "subdomain": "home", "zone": "example.com" }</pre>
+      </div>
+
+      <div class="api-endpoint">
+        <div class="api-method get">GET</div>
+        <div class="api-path">/api/update</div>
+        <p class="api-desc">Update IP for an existing record using its per-record key (existing API, unchanged).</p>
+        <pre class="code-block">curl "{{ siteUrl }}/api/update?key=yddns_...&subdomain=home.example.com"</pre>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Create Key Modal -->
+<div class="modal-overlay" id="createKeyModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2 class="modal-title">New API Key</h2>
+      <button class="modal-close" onclick="closeModal('createKeyModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form method="post" action="/dashboard/api-keys" class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Zone</label>
+        <select name="zone_id" class="form-select" required>
+          {% for zone in zones %}
+          <option value="{{ zone.id }}">{{ zone.domain }}</option>
+          {% endfor %}
+        </select>
+        <p class="form-hint">Only validated custom domains are available.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Key name</label>
+        <input type="text" name="name" class="form-input" required placeholder="e.g. CI deploy, homelab script">
+        <p class="form-hint">A label to identify what this key is used for.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('createKeyModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Key</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyKey() {
+  const code = document.getElementById('newKeyCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.querySelector('.pat-code-wrap .btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+</script>
+{% endblock %}

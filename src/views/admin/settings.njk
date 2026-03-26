@@ -144,7 +144,7 @@
   <div class="table-card">
     <table class="table">
       <thead>
-        <tr><th>Name</th><th>Users</th><th>Entries</th><th>Min TTL</th><th>Res/hr</th><th>Updates/hr</th><th>Min Sub Len</th><th>History</th><th>Custom Domains</th><th>Price/mo</th><th></th></tr>
+        <tr><th>Name</th><th>Users</th><th>Entries</th><th>Min TTL</th><th>Res/hr</th><th>Updates/hr</th><th>Rec/day</th><th>Min Sub Len</th><th>History</th><th>Custom Domains</th><th>Price/mo</th><th></th></tr>
       </thead>
       <tbody>
         {% for tier in tiers %}
@@ -155,6 +155,7 @@
           <td>{{ tier.min_ttl }}s</td>
           <td>{{ tier.max_resolutions_per_hour }}</td>
           <td>{{ tier.max_updates_per_hour }}</td>
+          <td>{{ tier.max_records_per_day }}</td>
           <td>{{ tier.min_subdomain_length }}</td>
           <td>{{ tier.history_days }}d</td>
           <td>{{ tier.max_custom_domains }}</td>
@@ -236,6 +237,7 @@ function openEditTier(id) {
   form.querySelector('[name=stripe_price_id]').value = tier.stripe_price_id || '';
   form.querySelector('[name=sort_order]').value = tier.sort_order;
   form.querySelector('[name=max_custom_domains]').value = tier.max_custom_domains || 0;
+  form.querySelector('[name=max_records_per_day]').value = tier.max_records_per_day || 10;
   openModal('editTierModal');
 }
 </script>

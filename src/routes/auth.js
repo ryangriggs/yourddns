@@ -184,18 +184,21 @@ module.exports = async function authRoutes(fastify) {
   // POST /auth/otp/request
   fastify.post('/auth/otp/request', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req, reply) => {
     const { email } = req.body || {};
-    if (!email) return reply.redirect('/auth/otp?error=missing');
+    const ajax = req.body.ajax === '1';
+    if (!email) {
+      return ajax ? reply.send({ ok: false, error: 'missing' }) : reply.redirect('/auth/otp?error=missing');
+    }
 
     const db = getDb();
     const clientIp = req.ip;
     if (db.prepare('SELECT id FROM blocked_ips WHERE ip_address = ?').get(clientIp)) {
-      return reply.redirect('/auth/otp?error=blocked');
+      return ajax ? reply.send({ ok: false, error: 'blocked' }) : reply.redirect('/auth/otp?error=blocked');
     }
 
     const user = db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE AND email_verified = 1 AND is_disabled = 0').get(email.trim());
     if (!user) {
       // Don't reveal if user exists
-      return reply.redirect(`/auth/otp?message=sent&email=${encodeURIComponent(email)}`);
+      return ajax ? reply.send({ ok: true }) : reply.redirect(`/auth/otp?message=sent&email=${encodeURIComponent(email)}`);
     }
 
     const intervalMinutes = parseInt(getSetting('otp_resend_interval_minutes') || '30', 10);
@@ -205,7 +208,9 @@ module.exports = async function authRoutes(fastify) {
       const waitMs = intervalMinutes * 60 * 1000;
       if (Date.now() - lastSent < waitMs) {
         const waitLeft = Math.ceil((waitMs - (Date.now() - lastSent)) / 60000);
-        return reply.redirect(`/auth/otp?error=rate_limit&wait=${waitLeft}&email=${encodeURIComponent(email)}`);
+        return ajax
+          ? reply.send({ ok: false, error: 'rate_limit', wait: waitLeft })
+          : reply.redirect(`/auth/otp?error=rate_limit&wait=${waitLeft}&email=${encodeURIComponent(email)}`);
       }
     }
 
@@ -217,6 +222,7 @@ module.exports = async function authRoutes(fastify) {
     db.prepare("INSERT INTO otp_codes (user_id, code_hash, expires_at, last_sent_at) VALUES (?, ?, ?, datetime('now'))").run(user.id, codeHash, expires);
 
     await sendOtpEmail(email.trim(), code);
+    if (req.body.ajax === '1') return reply.send({ ok: true });
     return reply.redirect(`/auth/otp?message=sent&email=${encodeURIComponent(email.trim())}`);
   });
 

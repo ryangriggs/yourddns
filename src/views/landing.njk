@@ -65,6 +65,44 @@
   </div>
 </section>
 
+<!-- API Section -->
+<section class="landing-section landing-section-alt">
+  <div class="landing-container">
+    <div class="landing-api-block">
+      <div class="landing-api-text">
+        <h2 class="landing-section-title" style="text-align:left;margin-bottom:0.75rem">Fully programmable via REST API</h2>
+        <p style="color:#6b7280;line-height:1.7;margin-bottom:1.25rem">Create, update, and delete DDNS records from any script, CI/CD pipeline, or deployment tool. Zone-scoped API keys keep access granular — one key per domain, revoke any time.</p>
+        <ul style="color:#6b7280;line-height:2;padding-left:1.25rem;margin-bottom:1.5rem">
+          <li>Provision hostnames on deploy, tear down on destroy</li>
+          <li>Self-register containers, VMs, and home lab devices</li>
+          <li>Separate keys per zone — no shared credentials</li>
+          <li>Simple token auth: Bearer header or <code>?key=</code> param</li>
+        </ul>
+        {% if registrationEnabled %}
+        <a href="/auth/register" class="btn btn-primary">Get started free</a>
+        {% else %}
+        <a href="/auth/login" class="btn btn-primary">Sign in</a>
+        {% endif %}
+      </div>
+      <div class="landing-api-code">
+        <div class="landing-code-block">
+          <div class="landing-code-label">Create a record</div>
+          <pre>curl -X POST \
+  -H "Authorization: Bearer zak_..." \
+  -H "Content-Type: application/json" \
+  -d '{"subdomain":"prod","ip":"1.2.3.4"}' \
+  https://yourddns.com/api/v1/zones/example.com/records</pre>
+        </div>
+        <div class="landing-code-block" style="margin-top:12px">
+          <div class="landing-code-label">Update IP</div>
+          <pre>curl "https://yourddns.com/api/update\
+?key=yddns_...&subdomain=prod.example.com"</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- News -->
 {% if newsContent %}
 <section class="landing-section landing-section-alt">

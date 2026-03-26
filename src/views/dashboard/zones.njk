@@ -7,9 +7,12 @@
       <h1 class="page-title">My Domains</h1>
       <p class="page-subtitle">{{ zones | length }} / {{ tier.max_custom_domains }} custom domains used</p>
     </div>
-    {% if tier.max_custom_domains > 0 and zones | length < tier.max_custom_domains %}
-    <button class="btn btn-primary" onclick="openModal('addZoneModal')">+ Add Domain</button>
-    {% endif %}
+    <div style="display:flex;gap:8px">
+      <a href="/dashboard/api-keys#api-docs" class="btn btn-outline">API Docs</a>
+      {% if tier.max_custom_domains > 0 and zones | length < tier.max_custom_domains %}
+      <button class="btn btn-primary" onclick="openModal('addZoneModal')">+ Add Domain</button>
+      {% endif %}
+    </div>
   </div>
 
   {% if flash %}
@@ -52,7 +55,7 @@
           </td>
           <td class="actions-cell">
             <a href="/dashboard/zones/{{ zone.id }}" class="btn btn-sm btn-outline">
-              {{ 'Manage DNS' if zone.validated else 'Instructions' }}
+              {{ 'Manage DNS' if zone.validated else 'Validation' }}
             </a>
             <form method="post" action="/dashboard/zones/{{ zone.id }}/delete" style="display:inline"
               onsubmit="return confirm('Delete {{ zone.domain }}? All DNS records in this zone will be removed.')">

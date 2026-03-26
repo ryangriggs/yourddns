@@ -44,19 +44,26 @@
     <input type="number" name="price_monthly" class="form-input" value="0" min="0">
     <p class="form-hint">0 = free</p>
   </div>
-  <div class="form-group">
-    <label class="form-label">Sort order</label>
-    <input type="number" name="sort_order" class="form-input" value="0">
-  </div>
 </div>
 <div class="form-row">
+  <div class="form-group">
+    <label class="form-label">Max records/day</label>
+    <input type="number" name="max_records_per_day" class="form-input" value="10" min="1" required>
+    <p class="form-hint">New records a user can create per 24h</p>
+  </div>
   <div class="form-group">
     <label class="form-label">Custom domains</label>
     <input type="number" name="max_custom_domains" class="form-input" value="0" min="0">
     <p class="form-hint">0 = not allowed</p>
   </div>
+</div>
+<div class="form-row">
   <div class="form-group">
     <label class="form-label">Stripe Price ID <span class="text-muted">(optional)</span></label>
     <input type="text" name="stripe_price_id" class="form-input" placeholder="price_...">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Sort order</label>
+    <input type="number" name="sort_order" class="form-input" value="0">
   </div>
 </div>

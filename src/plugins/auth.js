@@ -15,7 +15,7 @@ async function authPlugin(fastify) {
     const user = db.prepare(`
       SELECT u.*, t.name as tier_name, t.display_name as tier_display_name,
              t.max_entries, t.min_ttl, t.max_resolutions_per_hour, t.max_updates_per_hour,
-             t.min_subdomain_length, t.history_days, t.max_custom_domains
+             t.min_subdomain_length, t.history_days, t.max_custom_domains, t.max_records_per_day
       FROM users u
       JOIN tiers t ON t.id = u.tier_id
       WHERE u.id = ? AND u.is_disabled = 0

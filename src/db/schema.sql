@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS tiers (
   stripe_price_id TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  max_custom_domains INTEGER NOT NULL DEFAULT 0
+  max_custom_domains INTEGER NOT NULL DEFAULT 0,
+  max_records_per_day INTEGER NOT NULL DEFAULT 10
 );
 
 CREATE TABLE IF NOT EXISTS zones (
@@ -158,6 +159,18 @@ CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   data TEXT NOT NULL,
   expires_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS zone_api_keys (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  zone_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  key_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_used_at TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (zone_id) REFERENCES zones(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS oauth_accounts (
