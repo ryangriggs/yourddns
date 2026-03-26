@@ -125,11 +125,12 @@ async function build() {
 
   // ── Routes ────────────────────────────────────────────────────────────────
   fastify.get('/favicon.svg', async (req, reply) => {
-    const emoji = getSetting('favicon_emoji') || '🌐';
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`;
     reply.header('Content-Type', 'image/svg+xml');
     reply.header('Cache-Control', 'public, max-age=3600');
-    return reply.send(svg);
+    const custom = getSetting('favicon_svg');
+    if (custom) return reply.send(custom);
+    const emoji = getSetting('favicon_emoji') || '🌐';
+    return reply.send(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`);
   });
 
   fastify.get('/', async (req, reply) => {
@@ -139,7 +140,7 @@ async function build() {
     const registrationEnabled = getSetting('registration_enabled') !== 'false';
     const subscriptionsEnabled = getSetting('subscriptions_enabled') === 'true';
     const landingTitle = getSetting('landing_title') || 'Dynamic DNS for Everyone';
-    return reply.view('landing.njk', { title: landingTitle, tiers, newsContent, registrationEnabled, subscriptionsEnabled });
+    return reply.view('landing.njk', { title: landingTitle, tiers, newsContent, registrationEnabled, subscriptionsEnabled, user: req.user || null });
   });
 
   fastify.get('/terms', async (req, reply) => {

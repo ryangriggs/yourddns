@@ -1,167 +1,212 @@
 {% extends "layouts/admin.njk" %}
 {% set activePage = 'settings' %}
 {% block content %}
-<div class="page-container page-narrow">
+<div class="page-container">
   <div class="page-header"><h1 class="page-title">Settings</h1></div>
 
   {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
 
-  <form method="post" action="/admin/settings">
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="card-title">Site</h2></div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">Site Name</label>
-          <input type="text" name="site_name" class="form-input" value="{{ settings.site_name.value }}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Primary Domain</label>
-          <input type="text" name="site_domain" class="form-input" value="{{ settings.site_domain.value }}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Site URL</label>
-          <input type="text" name="site_url" class="form-input" value="{{ settings.site_url.value }}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Server IP Address</label>
-          <input type="text" name="site_ip" class="form-input" value="{{ settings.site_ip.value }}" placeholder="1.2.3.4">
-          <p class="form-hint">Auto-added as an apex A record when new zones are created. Required for domain redirect to work.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Support Email</label>
-          <input type="email" name="support_email" class="form-input" value="{{ settings.support_email.value }}">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Landing Page Headline</label>
-          <input type="text" name="landing_title" class="form-input" value="{{ settings.landing_title.value }}" placeholder="Dynamic DNS for Everyone">
-          <p class="form-hint">Hero headline shown on the public landing page.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Favicon</label>
-          <div style="display:flex;align-items:center;gap:0.75rem">
-            <input type="text" name="favicon_emoji" class="form-input" value="{{ settings.favicon_emoji.value }}" placeholder="🌐" style="max-width:80px;font-size:1.5rem;text-align:center">
-            <span class="text-muted" style="font-size:0.875rem">Type any emoji or character. Shown as the browser tab icon.</span>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">News / Announcement</label>
-          <textarea name="news_content" class="form-input" rows="4" placeholder="Leave blank to hide the news block on the landing page.">{{ settings.news_content.value }}</textarea>
-          <p class="form-hint">Shown on the public landing page. Supports plain text.</p>
-        </div>
-      </div>
-    </div>
+  <div class="settings-layout">
 
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="card-title">Authentication Limits</h2></div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">OTP resend interval (minutes)</label>
-          <input type="number" name="otp_resend_interval_minutes" class="form-input" value="{{ settings.otp_resend_interval_minutes.value }}" min="1">
-          <p class="form-hint">Minimum time between OTP emails per user.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Max OTP attempts per hour</label>
-          <input type="number" name="otp_max_attempts_per_hour" class="form-input" value="{{ settings.otp_max_attempts_per_hour.value }}" min="1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Max password attempts per hour</label>
-          <input type="number" name="password_max_attempts_per_hour" class="form-input" value="{{ settings.password_max_attempts_per_hour.value }}" min="1">
-        </div>
-        <div class="form-group">
-          <label class="form-label flex gap-2 items-center">
-            <input type="checkbox" name="registration_enabled" value="true" {% if settings.registration_enabled.value == 'true' %}checked{% endif %}>
-            Allow new registrations
-          </label>
-        </div>
-      </div>
-    </div>
+    <form id="settingsForm" method="post" action="/admin/settings" class="settings-main">
 
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="card-title">DNS</h2></div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">Global Minimum TTL (seconds)</label>
-          <input type="number" name="global_min_ttl" class="form-input" value="{{ settings.global_min_ttl.value }}" min="1" step="1">
-          <p class="form-hint">Hard floor applied to all tiers. Can be as low as 1 second. Individual tier minimums still apply if higher.</p>
-        </div>
-        <div class="form-row">
+      <div class="card mb-4" id="settings-site">
+        <div class="card-header"><h2 class="card-title">Site</h2></div>
+        <div class="card-body">
           <div class="form-group">
-            <label class="form-label">Primary Nameserver</label>
-            <input type="text" name="ns_primary" class="form-input" value="{{ settings.ns_primary.value }}">
-            <p class="form-hint">e.g. ns1.yourddns.com</p>
+            <label class="form-label">Site Name</label>
+            <input type="text" name="site_name" class="form-input" value="{{ settings.site_name.value }}">
           </div>
           <div class="form-group">
-            <label class="form-label">Secondary Nameserver</label>
-            <input type="text" name="ns_secondary" class="form-input" value="{{ settings.ns_secondary.value }}">
-            <p class="form-hint">e.g. ns2.yourddns.com</p>
+            <label class="form-label">Primary Domain</label>
+            <input type="text" name="site_domain" class="form-input" value="{{ settings.site_domain.value }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Site URL</label>
+            <input type="text" name="site_url" class="form-input" value="{{ settings.site_url.value }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Server IP Address</label>
+            <input type="text" name="site_ip" class="form-input" value="{{ settings.site_ip.value }}" placeholder="1.2.3.4">
+            <p class="form-hint">Auto-added as an apex A record when new zones are created. Required for domain redirect to work.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Support Email</label>
+            <input type="email" name="support_email" class="form-input" value="{{ settings.support_email.value }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Landing Page Headline</label>
+            <input type="text" name="landing_title" class="form-input" value="{{ settings.landing_title.value }}" placeholder="Dynamic DNS for Everyone">
+            <p class="form-hint">Hero headline shown on the public landing page.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Favicon</label>
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+              <img src="/favicon.svg" alt="Current favicon" style="width:40px;height:40px;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#fff">
+              <div>
+                {% if settings.favicon_svg.value %}
+                <p style="font-size:0.875rem;margin:0 0 6px">Custom SVG active.</p>
+                {% else %}
+                <p style="font-size:0.875rem;margin:0 0 6px">Using emoji fallback: <strong>{{ settings.favicon_emoji.value }}</strong></p>
+                {% endif %}
+                <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+                  <form method="post" action="/admin/settings/favicon" enctype="multipart/form-data" style="display:flex;gap:0.5rem;align-items:center">
+                    <input type="file" name="file" accept=".svg,image/svg+xml" required style="font-size:0.8125rem">
+                    <button type="submit" class="btn btn-sm btn-outline">Upload SVG</button>
+                  </form>
+                  {% if settings.favicon_svg.value %}
+                  <form method="post" action="/admin/settings/favicon/clear" onsubmit="return confirm('Remove custom favicon and revert to emoji?')">
+                    <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                  </form>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <p class="form-hint" style="margin-top:0.5rem">Upload any SVG file (max 100 KB). Shown as the browser tab icon on all pages.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Favicon Fallback (emoji)</label>
+            <div style="display:flex;align-items:center;gap:0.75rem">
+              <input type="text" name="favicon_emoji" class="form-input" value="{{ settings.favicon_emoji.value }}" placeholder="🌐" style="max-width:80px;font-size:1.5rem;text-align:center">
+              <span class="text-muted" style="font-size:0.875rem">Used when no SVG is uploaded.</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">News / Announcement</label>
+            <textarea name="news_content" class="form-input" rows="4" placeholder="Leave blank to hide the news block on the landing page.">{{ settings.news_content.value }}</textarea>
+            <p class="form-hint">Shown on the public landing page. Supports plain text.</p>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Custom domain validation timeout (hours)</label>
-          <input type="number" name="zone_validation_timeout_hours" class="form-input" value="{{ settings.zone_validation_timeout_hours.value }}" min="1" step="1">
-          <p class="form-hint">Pending custom domains not validated within this window are automatically removed. Default: 48.</p>
+      </div>
+
+      <div class="card mb-4" id="settings-auth">
+        <div class="card-header"><h2 class="card-title">Authentication</h2></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">OTP resend interval (minutes)</label>
+            <input type="number" name="otp_resend_interval_minutes" class="form-input" value="{{ settings.otp_resend_interval_minutes.value }}" min="1">
+            <p class="form-hint">Minimum time between OTP emails per user.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max OTP attempts per hour</label>
+            <input type="number" name="otp_max_attempts_per_hour" class="form-input" value="{{ settings.otp_max_attempts_per_hour.value }}" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Max password attempts per hour</label>
+            <input type="number" name="password_max_attempts_per_hour" class="form-input" value="{{ settings.password_max_attempts_per_hour.value }}" min="1">
+          </div>
+          <div class="form-group">
+            <label class="form-label flex gap-2 items-center">
+              <input type="checkbox" name="registration_enabled" value="true" {% if settings.registration_enabled.value == 'true' %}checked{% endif %}>
+              Allow new registrations
+            </label>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="card-title">Donations</h2></div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">GitHub Sponsors URL</label>
-          <input type="url" name="github_sponsors_url" class="form-input" value="{{ settings.github_sponsors_url.value }}" placeholder="https://github.com/sponsors/username">
-          <p class="form-hint">Shown prominently on the /donate page and in the dashboard banner.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label">PayPal Donation URL <span class="text-muted">(optional)</span></label>
-          <input type="url" name="paypal_donation_url" class="form-input" value="{{ settings.paypal_donation_url.value }}" placeholder="https://www.paypal.com/donate?hosted_button_id=...">
-          <p class="form-hint">Shown as a secondary option on the /donate page. Leave blank to hide.</p>
+      <div class="card mb-4" id="settings-dns">
+        <div class="card-header"><h2 class="card-title">DNS</h2></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Global Minimum TTL (seconds)</label>
+            <input type="number" name="global_min_ttl" class="form-input" value="{{ settings.global_min_ttl.value }}" min="1" step="1">
+            <p class="form-hint">Hard floor applied to all tiers. Can be as low as 1 second. Individual tier minimums still apply if higher.</p>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Primary Nameserver</label>
+              <input type="text" name="ns_primary" class="form-input" value="{{ settings.ns_primary.value }}">
+              <p class="form-hint">e.g. ns1.yourddns.com</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Secondary Nameserver</label>
+              <input type="text" name="ns_secondary" class="form-input" value="{{ settings.ns_secondary.value }}">
+              <p class="form-hint">e.g. ns2.yourddns.com</p>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Custom domain validation timeout (hours)</label>
+            <input type="number" name="zone_validation_timeout_hours" class="form-input" value="{{ settings.zone_validation_timeout_hours.value }}" min="1" step="1">
+            <p class="form-hint">Pending custom domains not validated within this window are automatically removed. Default: 48.</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="card mb-4" id="backup">
-      <div class="card-header"><h2 class="card-title">Backups</h2></div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label">Auto-backup every (hours)</label>
-          <input type="number" name="backup_interval_hours" class="form-input" value="{{ settings.backup_interval_hours.value }}" min="0" style="max-width:120px">
-          <p class="form-hint">Automatically create a backup at this interval. Set to 0 to disable scheduled backups.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Delete backups older than (days)</label>
-          <input type="number" name="backup_retention_days" class="form-input" value="{{ settings.backup_retention_days.value }}" min="0" style="max-width:120px">
-          <p class="form-hint">Backups older than this many days are pruned automatically. Set to 0 to keep forever.</p>
-        </div>
-        <p class="form-hint"><a href="/admin/backups">Manage backups &rarr;</a></p>
-      </div>
-    </div>
-
-    <div class="card mb-4">
-      <div class="card-header"><h2 class="card-title">Subscriptions &amp; Billing</h2></div>
-      <div class="card-body">
-        <div class="form-group">
-          <label class="form-label flex gap-2 items-center">
-            <input type="checkbox" name="subscriptions_enabled" value="true" {% if settings.subscriptions_enabled.value == 'true' %}checked{% endif %}>
-            Show paid plans and upgrade prompts
-          </label>
-          <p class="form-hint">When off, all users get free-tier limits with no upgrade UI. Tiers still apply for rate limiting.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label flex gap-2 items-center">
-            <input type="checkbox" name="stripe_enabled" value="true" {% if settings.stripe_enabled.value == 'true' %}checked{% endif %}>
-            Enable Stripe billing
-          </label>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Stripe Publishable Key</label>
-          <input type="text" name="stripe_publishable_key" class="form-input" value="{{ settings.stripe_publishable_key.value }}">
+      <div class="card mb-4" id="settings-donations">
+        <div class="card-header"><h2 class="card-title">Donations</h2></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">GitHub Sponsors URL</label>
+            <input type="url" name="github_sponsors_url" class="form-input" value="{{ settings.github_sponsors_url.value }}" placeholder="https://github.com/sponsors/username">
+            <p class="form-hint">Shown prominently on the /donate page and in the dashboard banner.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">PayPal Donation URL <span class="text-muted">(optional)</span></label>
+            <input type="url" name="paypal_donation_url" class="form-input" value="{{ settings.paypal_donation_url.value }}" placeholder="https://www.paypal.com/donate?hosted_button_id=...">
+            <p class="form-hint">Shown as a secondary option on the /donate page. Leave blank to hide.</p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <button type="submit" class="btn btn-primary">Save Settings</button>
-  </form>
+      <div class="card mb-4" id="settings-backups">
+        <div class="card-header"><h2 class="card-title">Backups</h2></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Auto-backup every (hours)</label>
+            <input type="number" name="backup_interval_hours" class="form-input" value="{{ settings.backup_interval_hours.value }}" min="0" style="max-width:120px">
+            <p class="form-hint">Automatically create a backup at this interval. Set to 0 to disable scheduled backups.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Delete backups older than (days)</label>
+            <input type="number" name="backup_retention_days" class="form-input" value="{{ settings.backup_retention_days.value }}" min="0" style="max-width:120px">
+            <p class="form-hint">Backups older than this many days are pruned automatically. Set to 0 to keep forever.</p>
+          </div>
+          <p class="form-hint"><a href="/admin/backups">Manage backups &rarr;</a></p>
+        </div>
+      </div>
+
+      <div class="card mb-4" id="settings-billing">
+        <div class="card-header"><h2 class="card-title">Subscriptions &amp; Billing</h2></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label flex gap-2 items-center">
+              <input type="checkbox" name="subscriptions_enabled" value="true" {% if settings.subscriptions_enabled.value == 'true' %}checked{% endif %}>
+              Show paid plans and upgrade prompts
+            </label>
+            <p class="form-hint">When off, all users get free-tier limits with no upgrade UI. Tiers still apply for rate limiting.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label flex gap-2 items-center">
+              <input type="checkbox" name="stripe_enabled" value="true" {% if settings.stripe_enabled.value == 'true' %}checked{% endif %}>
+              Enable Stripe billing
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Stripe Publishable Key</label>
+            <input type="text" name="stripe_publishable_key" class="form-input" value="{{ settings.stripe_publishable_key.value }}">
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary mb-6">Save Settings</button>
+    </form>
+
+    <aside class="settings-sidenav">
+      <div class="settings-sidenav-inner">
+        <p class="settings-sidenav-title">Sections</p>
+        <nav class="settings-sidenav-nav" id="settingsSideNav">
+          <a href="#settings-site"      class="settings-sidenav-link active" data-target="settings-site">Site</a>
+          <a href="#settings-auth"      class="settings-sidenav-link" data-target="settings-auth">Authentication</a>
+          <a href="#settings-dns"       class="settings-sidenav-link" data-target="settings-dns">DNS</a>
+          <a href="#settings-donations" class="settings-sidenav-link" data-target="settings-donations">Donations</a>
+          <a href="#settings-backups"   class="settings-sidenav-link" data-target="settings-backups">Backups</a>
+          <a href="#settings-billing"   class="settings-sidenav-link" data-target="settings-billing">Billing</a>
+        </nav>
+        <button type="submit" form="settingsForm" class="btn btn-primary" style="width:100%;margin-top:1rem">Save All</button>
+      </div>
+    </aside>
+
+  </div>
 </div>
 
 <!-- Tier Management — full width -->
@@ -269,5 +314,21 @@ function openEditTier(id) {
   form.querySelector('[name=max_records_per_day]').value = tier.max_records_per_day || 10;
   openModal('editTierModal');
 }
+
+// Highlight active section in sidenav as user scrolls
+(function () {
+  const sections = Array.from(document.querySelectorAll('[id^="settings-"]'));
+  const links = document.querySelectorAll('.settings-sidenav-link');
+  if (!sections.length || !('IntersectionObserver' in window)) return;
+
+  const active = new Set();
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => e.isIntersecting ? active.add(e.target.id) : active.delete(e.target.id));
+    const first = sections.find(s => active.has(s.id));
+    links.forEach(l => l.classList.toggle('active', first && l.dataset.target === first.id));
+  }, { rootMargin: '-20% 0px -60% 0px' });
+
+  sections.forEach(s => obs.observe(s));
+})();
 </script>
 {% endblock %}

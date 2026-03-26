@@ -321,6 +321,39 @@ module.exports = async function adminRoutes(fastify) {
     return reply.redirect('/admin/settings');
   });
 
+  // POST /admin/settings/favicon — upload SVG file
+  fastify.post('/admin/settings/favicon', async (req, reply) => {
+    try {
+      const data = await req.file({ limits: { fileSize: 100 * 1024 } }); // 100 KB max
+      if (!data) {
+        req.session.flash = { type: 'error', message: 'No file received.' };
+        return reply.redirect('/admin/settings#settings-site');
+      }
+      const chunks = [];
+      for await (const chunk of data.file) chunks.push(chunk);
+      const content = Buffer.concat(chunks).toString('utf8').trim();
+
+      // Basic SVG validation — must contain <svg
+      if (!content.includes('<svg')) {
+        req.session.flash = { type: 'error', message: 'File does not appear to be a valid SVG.' };
+        return reply.redirect('/admin/settings#settings-site');
+      }
+
+      setSetting('favicon_svg', content);
+      req.session.flash = { type: 'success', message: 'Favicon updated.' };
+    } catch (err) {
+      req.session.flash = { type: 'error', message: `Upload failed: ${err.message}` };
+    }
+    return reply.redirect('/admin/settings#settings-site');
+  });
+
+  // POST /admin/settings/favicon/clear — remove custom SVG
+  fastify.post('/admin/settings/favicon/clear', async (req, reply) => {
+    setSetting('favicon_svg', '');
+    req.session.flash = { type: 'success', message: 'Custom favicon removed.' };
+    return reply.redirect('/admin/settings#settings-site');
+  });
+
   // Tier management
   fastify.post('/admin/tiers', async (req, reply) => {
     const db = getDb();

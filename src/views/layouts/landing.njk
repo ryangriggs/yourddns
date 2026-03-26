@@ -8,15 +8,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/public/css/main.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body class="landing-body">
   <header class="landing-header">
     <div class="landing-header-inner">
       <a href="/" class="logo">{{ siteName }}</a>
       <div class="landing-header-actions">
+        {% if user %}
+        <span class="text-muted" style="font-size:0.875rem">{{ user.email }}</span>
+        <a href="/dashboard" class="btn btn-primary btn-sm">Dashboard</a>
+        {% else %}
         <a href="/auth/login" class="btn btn-outline btn-sm">Sign In</a>
         {% if registrationEnabled %}
         <a href="/auth/register" class="btn btn-primary btn-sm">Create Account</a>
+        {% endif %}
         {% endif %}
       </div>
     </div>
