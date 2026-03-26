@@ -583,7 +583,7 @@ module.exports = async function adminRoutes(fastify) {
       JOIN users u ON u.id = r.user_id
       ORDER BY r.subdomain ASC
     `).all();
-    return reply.view('admin/stats.njk', { title: 'Stats', records, allRecords, sort, dir, page: pageNum, per: perPage, total, totalPages });
+    return reply.view('stats.njk', { title: 'Stats', layout: 'layouts/admin.njk', records, allRecords, sort, dir, page: pageNum, per: perPage, total, totalPages, showUser: true, dataUrl: '/admin/stats/data' });
   });
 
   fastify.get('/admin/stats/data', async (req, reply) => {

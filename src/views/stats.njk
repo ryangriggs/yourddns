@@ -1,4 +1,4 @@
-{% extends "layouts/admin.njk" %}
+{% extends layout %}
 {% set activePage = 'stats' %}
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -69,7 +69,7 @@
             <tr>
               <th>{{ sortLink('subdomain', 'Subdomain') }}</th>
               <th>{{ sortLink('zone', 'Zone') }}</th>
-              <th>{{ sortLink('user', 'User') }}</th>
+              {% if showUser %}<th>{{ sortLink('user', 'User') }}</th>{% endif %}
               <th>{{ sortLink('ip', 'IP') }}</th>
               <th>{{ sortLink('hits', 'Hits') }}</th>
               <th>{{ sortLink('updated', 'Last Updated') }}</th>
@@ -80,7 +80,7 @@
             <tr>
               <td class="mono">{{ record.subdomain }}</td>
               <td class="text-muted">{{ record.zone_domain }}</td>
-              <td class="text-muted">{{ record.user_email }}</td>
+              {% if showUser %}<td class="text-muted">{{ record.user_email }}</td>{% endif %}
               <td class="mono">
                 {{ record.ip_address or '—' }}
                 {% if record.ip6_address %}<br><span style="font-size:0.8em;color:#6b7280">{{ record.ip6_address }}</span>{% endif %}
@@ -90,7 +90,7 @@
             </tr>
             {% endfor %}
             {% if records | length == 0 %}
-            <tr><td colspan="6" class="text-muted" style="text-align:center;padding:2rem">No records.</td></tr>
+            <tr><td colspan="{{ 6 if showUser else 5 }}" class="text-muted" style="text-align:center;padding:2rem">No records.</td></tr>
             {% endif %}
           </tbody>
         </table>
@@ -109,6 +109,7 @@
 {% block scripts %}
 <script>
 const ALL_RECORDS = {{ allRecords | dump | safe }};
+const DATA_URL = {{ dataUrl | dump | safe }};
 const selectedIds = new Set();
 const SIDEBAR_PER_PAGE = 20;
 let sidebarPage = 1;
@@ -133,32 +134,32 @@ function getFiltered() {
 
 function renderSidebar() {
   const filtered = getFiltered();
-  // Always include selected records even if filtered out, appended at top
   const selectedNotFiltered = ALL_RECORDS.filter(r => selectedIds.has(String(r.id)) && !filtered.find(f => f.id === r.id));
-  const displayList = [...selectedNotFiltered, ...filtered];
   const totalPages = Math.max(1, Math.ceil(filtered.length / SIDEBAR_PER_PAGE));
   if (sidebarPage > totalPages) sidebarPage = totalPages;
-  // Paginate only the filtered portion; selected-but-filtered-out always show
   const pageSlice = filtered.slice((sidebarPage - 1) * SIDEBAR_PER_PAGE, sidebarPage * SIDEBAR_PER_PAGE);
   const toShow = [...selectedNotFiltered, ...pageSlice];
 
   const list = document.getElementById('sidebarList');
-  list.innerHTML = toShow.map(r => {
-    const id = String(r.id);
-    const checked = selectedIds.has(id) ? 'checked' : '';
-    const pinned = selectedNotFiltered.find(s => s.id === r.id) ? ' style="background:var(--bg-hover,#f9fafb)"' : '';
-    return `<li class="record-list-item"${pinned}>
-      <label class="record-checkbox-label">
-        <input type="checkbox" class="record-check" value="${id}" ${checked} onchange="toggleRecord(this)">
-        <span>
-          <span class="record-fqdn">${escHtml(r.subdomain)}<span class="text-muted">.${escHtml(r.zone_domain)}</span></span><br>
-          <span class="text-xs text-muted">${escHtml(r.user_email)}</span>
-        </span>
-      </label>
-    </li>`;
-  }).join('');
+  if (!toShow.length) {
+    list.innerHTML = '<li style="padding:12px 16px;font-size:0.875rem;color:#6b7280">No records match.</li>';
+  } else {
+    list.innerHTML = toShow.map(r => {
+      const id = String(r.id);
+      const checked = selectedIds.has(id) ? 'checked' : '';
+      const pinned = selectedNotFiltered.find(s => s.id === r.id) ? ' style="background:var(--bg-hover,#f9fafb)"' : '';
+      return `<li class="record-list-item"${pinned}>
+        <label class="record-checkbox-label">
+          <input type="checkbox" class="record-check" value="${id}" ${checked} onchange="toggleRecord(this)">
+          <span>
+            <span class="record-fqdn">${escHtml(r.subdomain)}<span class="text-muted">.${escHtml(r.zone_domain)}</span></span><br>
+            <span class="text-xs text-muted">${escHtml(r.user_email)}</span>
+          </span>
+        </label>
+      </li>`;
+    }).join('');
+  }
 
-  // Pager
   const pager = document.getElementById('sidebarPager');
   if (totalPages > 1) {
     pager.style.display = 'flex';
@@ -176,6 +177,7 @@ function setSidebarPage(p) { sidebarPage = p; renderSidebar(); }
 function toggleRecord(cb) {
   if (cb.checked) selectedIds.add(cb.value); else selectedIds.delete(cb.value);
   updateSelectionUI();
+  updateChart();
 }
 
 function deselectAll() {
@@ -207,20 +209,32 @@ async function updateChart() {
   const checked = [...selectedIds];
   const from = document.getElementById('fromDate').value || fmt(weekAgo);
   const to = document.getElementById('toDate').value || fmt(today);
-  if (!checked.length) { document.getElementById('chartEmpty').style.display=''; document.getElementById('chartWrap').style.display='none'; if(chart){chart.destroy();chart=null;} return; }
-  const params = checked.map(id=>`records=${id}`).join('&');
-  const res = await fetch(`/admin/stats/data?${params}&from=${from}&to=${to}`);
+  if (!checked.length) {
+    document.getElementById('chartEmpty').style.display = '';
+    document.getElementById('chartWrap').style.display = 'none';
+    if (chart) { chart.destroy(); chart = null; }
+    return;
+  }
+  const params = checked.map(id => `records=${id}`).join('&');
+  const res = await fetch(`${DATA_URL}?${params}&from=${from}&to=${to}`);
   const { datasets } = await res.json();
-  document.getElementById('chartEmpty').style.display='none';
-  document.getElementById('chartWrap').style.display='';
-  const allLabels=[]; const cur2=new Date(from),end2=new Date(to);
-  while(cur2<=end2){allLabels.push(fmt(cur2));cur2.setDate(cur2.getDate()+1);}
-  const cd = datasets.map(ds=>{ const color=getColor(ds.id); const {values}=fillDates(from,to,ds.data); return {label:ds.label,data:values,borderColor:color,backgroundColor:color+'22',fill:true,tension:0.3,pointRadius:3}; });
-  if(chart)chart.destroy();
-  chart=new Chart(document.getElementById('hitsChart'),{type:'line',data:{labels:allLabels,datasets:cd},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top'}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}}}});
+  document.getElementById('chartEmpty').style.display = 'none';
+  document.getElementById('chartWrap').style.display = '';
+  const allLabels = []; const cur2 = new Date(from), end2 = new Date(to);
+  while (cur2 <= end2) { allLabels.push(fmt(cur2)); cur2.setDate(cur2.getDate() + 1); }
+  const cd = datasets.map(ds => {
+    const color = getColor(ds.id);
+    const { values } = fillDates(from, to, ds.data);
+    return { label: ds.label, data: values, borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.3, pointRadius: 3 };
+  });
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('hitsChart'), {
+    type: 'line',
+    data: { labels: allLabels, datasets: cd },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } }
+  });
 }
 
-// Init
 renderSidebar();
 </script>
 {% endblock %}
