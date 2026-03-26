@@ -154,7 +154,3 @@ dig @<your-server-ip> yourdomain.d.yourddns.com
 ## Customization
 
 All site-level settings (name, domain, support email, PayPal donation URL, etc.) are configurable in **Admin → Settings** without redeployment.
-
-## License
-
-MIT
