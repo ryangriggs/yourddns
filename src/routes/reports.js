@@ -12,27 +12,6 @@ module.exports = async function reportsRoutes(fastify) {
   // GET /stats
   fastify.get('/stats', async (req, reply) => {
     const db = getDb();
-    const { sort = 'subdomain', dir = 'asc', page = '1', per = '50' } = req.query || {};
-    const validSorts = { subdomain: 'r.subdomain', zone: 'z.domain', ip: 'r.ip_address', hits: 'r.hit_count', updated: 'r.last_update_received_at' };
-    const sortCol = validSorts[sort] || 'r.subdomain';
-    const sortDir = dir === 'desc' ? 'DESC' : 'ASC';
-    const perPage = [10, 50, 100, 500].includes(Number(per)) ? Number(per) : 50;
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const offset = (pageNum - 1) * perPage;
-
-    const total = db.prepare('SELECT COUNT(*) as c FROM ddns_records WHERE user_id = ?').get(req.user.id).c;
-    const totalPages = Math.max(1, Math.ceil(total / perPage));
-
-    const records = db.prepare(`
-      SELECT r.id, r.subdomain, r.ip_address, r.ip6_address, r.hit_count, r.last_update_received_at,
-             z.domain as zone_domain, u.email as user_email
-      FROM ddns_records r
-      JOIN zones z ON z.id = r.zone_id
-      JOIN users u ON u.id = r.user_id
-      WHERE r.user_id = ?
-      ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?
-    `).all(req.user.id, perPage, offset);
-
     const allRecords = db.prepare(`
       SELECT r.id, r.subdomain, z.domain as zone_domain, u.email as user_email
       FROM ddns_records r
@@ -44,9 +23,45 @@ module.exports = async function reportsRoutes(fastify) {
 
     return reply.view('stats.njk', {
       title: 'Stats', layout: 'layouts/base.njk',
-      records, allRecords, sort, dir, page: pageNum, per: perPage, total, totalPages,
-      showUser: false, dataUrl: '/stats/data',
+      allRecords, showUser: false, dataUrl: '/stats/data', hitsUrl: '/stats/hits',
     });
+  });
+
+  // GET /stats/hits — paginated DNS hit log for selected records (user-scoped)
+  fastify.get('/stats/hits', async (req, reply) => {
+    const db = getDb();
+    const { records: recordIds, from, to, page = '1', per = '50' } = req.query || {};
+    if (!recordIds) return reply.send({ hits: [], total: 0, page: 1, totalPages: 1 });
+    const ids = (Array.isArray(recordIds) ? recordIds : [recordIds]).map(Number).filter(Boolean);
+    if (!ids.length) return reply.send({ hits: [], total: 0, page: 1, totalPages: 1 });
+
+    const owned = db.prepare(
+      `SELECT id FROM ddns_records WHERE id IN (${ids.map(() => '?').join(',')}) AND user_id = ?`
+    ).all(...ids, req.user.id).map(r => r.id);
+    if (!owned.length) return reply.send({ hits: [], total: 0, page: 1, totalPages: 1 });
+
+    const fromDate = from || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const toDate = to || new Date().toISOString().split('T')[0];
+    const perPage = Math.min(Math.max(parseInt(per) || 50, 1), 500);
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const offset = (pageNum - 1) * perPage;
+    const inClause = owned.map(() => '?').join(',');
+
+    const total = db.prepare(
+      `SELECT COUNT(*) as c FROM dns_hits WHERE record_id IN (${inClause}) AND date(queried_at) >= ? AND date(queried_at) <= ?`
+    ).get(...owned, fromDate, toDate).c;
+
+    const hits = db.prepare(`
+      SELECT h.id, h.queried_at, h.query_type, h.client_ip,
+             r.subdomain, z.domain as zone_domain
+      FROM dns_hits h
+      JOIN ddns_records r ON r.id = h.record_id
+      JOIN zones z ON z.id = r.zone_id
+      WHERE h.record_id IN (${inClause}) AND date(h.queried_at) >= ? AND date(h.queried_at) <= ?
+      ORDER BY h.queried_at DESC LIMIT ? OFFSET ?
+    `).all(...owned, fromDate, toDate, perPage, offset);
+
+    return reply.send({ hits, total, page: pageNum, totalPages: Math.max(1, Math.ceil(total / perPage)) });
   });
 
   // GET /stats/data — JSON chart data (user-scoped)
