@@ -1,6 +1,6 @@
 {
   "name": "yourddns",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Self-hosted dynamic DNS service",
   "main": "src/server.js",
   "scripts": {
@@ -12,7 +12,7 @@
     "@fastify/cookie": "^9.4.0",
     "@fastify/formbody": "^7.4.0",
     "@fastify/helmet": "^11.1.1",
-    "@fastify/multipart": "^9.4.0",
+    "@fastify/multipart": "^8.3.1",
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/session": "^10.9.0",
     "@fastify/static": "^7.0.4",
