@@ -136,6 +136,7 @@ async function seedDefaultData() {
     ['backup_retention_days',       '30',   'Delete backups older than X days (0 = keep forever)'],
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
+    ['landing_title',               'Dynamic DNS for Everyone', 'Hero headline on the landing page'],
     ['news_content',                '', 'News/announcement block shown on landing page'],
     ['global_min_ttl',              '1', 'Global minimum TTL (seconds) — floor for all tiers'],
     ['ns_primary',   process.env.NS_PRIMARY || 'ns1.yourddns.com',   'Primary nameserver hostname'],

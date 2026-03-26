@@ -130,7 +130,8 @@ async function build() {
     const newsContent = getSetting('news_content') || '';
     const registrationEnabled = getSetting('registration_enabled') !== 'false';
     const subscriptionsEnabled = getSetting('subscriptions_enabled') === 'true';
-    return reply.view('landing.njk', { title: 'Dynamic DNS for Everyone', tiers, newsContent, registrationEnabled, subscriptionsEnabled });
+    const landingTitle = getSetting('landing_title') || 'Dynamic DNS for Everyone';
+    return reply.view('landing.njk', { title: landingTitle, tiers, newsContent, registrationEnabled, subscriptionsEnabled });
   });
 
   fastify.get('/terms', async (req, reply) => {
