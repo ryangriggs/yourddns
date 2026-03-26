@@ -124,6 +124,14 @@ async function build() {
   });
 
   // ── Routes ────────────────────────────────────────────────────────────────
+  fastify.get('/favicon.svg', async (req, reply) => {
+    const emoji = getSetting('favicon_emoji') || '🌐';
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`;
+    reply.header('Content-Type', 'image/svg+xml');
+    reply.header('Cache-Control', 'public, max-age=3600');
+    return reply.send(svg);
+  });
+
   fastify.get('/', async (req, reply) => {
     const db = getDb();
     const tiers = db.prepare("SELECT * FROM tiers ORDER BY sort_order").all();

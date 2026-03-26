@@ -148,6 +148,7 @@ async function seedDefaultData() {
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
     ['landing_title',               'Dynamic DNS for Everyone', 'Hero headline on the landing page'],
+    ['favicon_emoji',               '🌐', 'Emoji or character used as the site favicon'],
     ['news_content',                '', 'News/announcement block shown on landing page'],
     ['global_min_ttl',              '1', 'Global minimum TTL (seconds) — floor for all tiers'],
     ['ns_primary',   process.env.NS_PRIMARY || 'ns1.yourddns.com',   'Primary nameserver hostname'],

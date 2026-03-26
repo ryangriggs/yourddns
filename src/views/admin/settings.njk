@@ -37,6 +37,13 @@
           <p class="form-hint">Hero headline shown on the public landing page.</p>
         </div>
         <div class="form-group">
+          <label class="form-label">Favicon</label>
+          <div style="display:flex;align-items:center;gap:0.75rem">
+            <input type="text" name="favicon_emoji" class="form-input" value="{{ settings.favicon_emoji.value }}" placeholder="🌐" style="max-width:80px;font-size:1.5rem;text-align:center">
+            <span class="text-muted" style="font-size:0.875rem">Type any emoji or character. Shown as the browser tab icon.</span>
+          </div>
+        </div>
+        <div class="form-group">
           <label class="form-label">News / Announcement</label>
           <textarea name="news_content" class="form-input" rows="4" placeholder="Leave blank to hide the news block on the landing page.">{{ settings.news_content.value }}</textarea>
           <p class="form-hint">Shown on the public landing page. Supports plain text.</p>

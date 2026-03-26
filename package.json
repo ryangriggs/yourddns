@@ -1,6 +1,6 @@
 {
   "name": "yourddns",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Self-hosted dynamic DNS service",
   "main": "src/server.js",
   "scripts": {
