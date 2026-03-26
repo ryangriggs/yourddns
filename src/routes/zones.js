@@ -137,6 +137,9 @@ module.exports = async function zonesRoutes(fastify) {
     const staticRecords = db.prepare('SELECT * FROM zone_static_records WHERE zone_id = ? ORDER BY type, name').all(zone.id);
     const nsPrimary = getSetting('ns_primary') || 'ns1.yourddns.com';
     const nsSecondary = getSetting('ns_secondary') || 'ns2.yourddns.com';
+    const siteIp = getSetting('site_ip') || '';
+    const siteDomain = getSetting('site_domain') || '';
+    const hasApexA = staticRecords.some(r => r.name === '@' && r.type === 'A');
     const flash = req.session.flash;
     delete req.session.flash;
 
@@ -146,6 +149,9 @@ module.exports = async function zonesRoutes(fastify) {
       staticRecords,
       nsPrimary,
       nsSecondary,
+      hasApexA,
+      siteIp,
+      siteDomain,
       flash,
     });
   });
@@ -182,6 +188,12 @@ module.exports = async function zonesRoutes(fastify) {
     // Remove other users' pending claims on the same domain
     db.prepare('DELETE FROM zones WHERE LOWER(domain) = ? AND user_id != ? AND validated = 0').run(zone.domain.toLowerCase(), req.user.id);
 
+    // Auto-add apex A record if site_ip is configured and no A record exists yet
+    const siteIp = getSetting('site_ip') || '';
+    if (siteIp) {
+      db.prepare('INSERT OR IGNORE INTO zone_static_records (zone_id, name, type, value, ttl) VALUES (?, ?, ?, ?, ?)').run(zone.id, '@', 'A', siteIp, 300);
+    }
+
     req.session.flash = { type: 'success', message: `${zone.domain} has been validated and is now active.` };
     return reply.redirect(`/dashboard/zones/${zone.id}`);
   });
@@ -197,6 +209,21 @@ module.exports = async function zonesRoutes(fastify) {
 
     req.session.flash = { type: 'success', message: `${zone.domain} and all its records have been deleted.` };
     return reply.redirect('/dashboard/zones');
+  });
+
+  // POST /dashboard/zones/:id/add-apex-a
+  fastify.post('/dashboard/zones/:id/add-apex-a', async (req, reply) => {
+    const db = getDb();
+    const zone = db.prepare('SELECT * FROM zones WHERE id = ? AND user_id = ? AND validated = 1').get(req.params.id, req.user.id);
+    if (!zone) return reply.code(404).send('Not found');
+    const siteIp = getSetting('site_ip') || '';
+    if (!siteIp) {
+      req.session.flash = { type: 'error', message: 'Server IP is not configured. Contact support.' };
+      return reply.redirect(`/dashboard/zones/${zone.id}`);
+    }
+    db.prepare('INSERT OR IGNORE INTO zone_static_records (zone_id, name, type, value, ttl) VALUES (?, ?, ?, ?, ?)').run(zone.id, '@', 'A', siteIp, 300);
+    req.session.flash = { type: 'success', message: 'A record added.' };
+    return reply.redirect(`/dashboard/zones/${zone.id}`);
   });
 
   // POST /dashboard/zones/:id/records — add static record

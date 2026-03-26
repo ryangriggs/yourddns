@@ -5,6 +5,11 @@ const bcrypt = require('bcryptjs');
 const { getDb, getSetting } = require('../db/index');
 const { sendVerificationEmail, sendPasswordResetEmail, sendOtpEmail } = require('../services/email');
 
+// Only allow relative redirects — prevents open redirect via returnTo
+function isSafeRedirect(url) {
+  return typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\');
+}
+
 module.exports = async function authRoutes(fastify) {
   // GET /auth/login
   fastify.get('/auth/login', async (req, reply) => {
@@ -13,7 +18,7 @@ module.exports = async function authRoutes(fastify) {
   });
 
   // POST /auth/login
-  fastify.post('/auth/login', async (req, reply) => {
+  fastify.post('/auth/login', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const { email, password } = req.body || {};
     if (!email || !password) return reply.redirect('/auth/login?error=missing');
 
@@ -36,10 +41,9 @@ module.exports = async function authRoutes(fastify) {
 
     if (!user.email_verified) return reply.redirect('/auth/login?error=unverified&email=' + encodeURIComponent(email));
 
+    const dest = isSafeRedirect(req.session.returnTo) ? req.session.returnTo : '/dashboard';
+    await req.session.regenerate();
     req.session.userId = user.id;
-    delete req.session.impersonatingUserId;
-    const dest = req.session.returnTo || '/dashboard';
-    delete req.session.returnTo;
     return reply.redirect(dest);
   });
 
@@ -52,7 +56,7 @@ module.exports = async function authRoutes(fastify) {
   });
 
   // POST /auth/register
-  fastify.post('/auth/register', async (req, reply) => {
+  fastify.post('/auth/register', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req, reply) => {
     const regEnabled = getSetting('registration_enabled');
     if (regEnabled === 'false') return reply.redirect('/auth/login?error=registration_disabled');
 
@@ -124,7 +128,7 @@ module.exports = async function authRoutes(fastify) {
   });
 
   // POST /auth/forgot-password
-  fastify.post('/auth/forgot-password', async (req, reply) => {
+  fastify.post('/auth/forgot-password', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req, reply) => {
     const { email } = req.body || {};
     if (!email) return reply.redirect('/auth/forgot-password?error=missing');
     const db = getDb();
@@ -178,7 +182,7 @@ module.exports = async function authRoutes(fastify) {
   });
 
   // POST /auth/otp/request
-  fastify.post('/auth/otp/request', async (req, reply) => {
+  fastify.post('/auth/otp/request', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (req, reply) => {
     const { email } = req.body || {};
     if (!email) return reply.redirect('/auth/otp?error=missing');
 
@@ -205,7 +209,7 @@ module.exports = async function authRoutes(fastify) {
       }
     }
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const code = crypto.randomInt(100000, 1000000).toString();
     const codeHash = await bcrypt.hash(code, 10);
     const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
@@ -217,7 +221,7 @@ module.exports = async function authRoutes(fastify) {
   });
 
   // POST /auth/otp/verify
-  fastify.post('/auth/otp/verify', async (req, reply) => {
+  fastify.post('/auth/otp/verify', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
     const { email, code } = req.body || {};
     if (!email || !code) return reply.redirect('/auth/otp?error=missing');
 
@@ -248,9 +252,9 @@ module.exports = async function authRoutes(fastify) {
       db.prepare('UPDATE users SET email_verified = 1 WHERE id = ?').run(user.id);
     }
 
+    const dest = isSafeRedirect(req.session.returnTo) ? req.session.returnTo : '/dashboard';
+    await req.session.regenerate();
     req.session.userId = user.id;
-    const dest = req.session.returnTo || '/dashboard';
-    delete req.session.returnTo;
     return reply.redirect(dest);
   });
 
@@ -334,10 +338,9 @@ module.exports = async function authRoutes(fastify) {
     if (oauthAccount) {
       const user = db.prepare('SELECT * FROM users WHERE id = ?').get(oauthAccount.user_id);
       if (!user || user.is_disabled) return reply.redirect('/auth/login?error=disabled');
+      const dest = isSafeRedirect(req.session.returnTo) ? req.session.returnTo : '/dashboard';
+      await req.session.regenerate();
       req.session.userId = user.id;
-      delete req.session.impersonatingUserId;
-      const dest = req.session.returnTo || '/dashboard';
-      delete req.session.returnTo;
       return reply.redirect(dest);
     }
 
@@ -359,10 +362,9 @@ module.exports = async function authRoutes(fastify) {
       db.prepare('INSERT INTO oauth_accounts (user_id, provider, provider_user_id) VALUES (?, ?, ?)').run(user.id, 'google', googleId);
     }
 
+    const dest = isSafeRedirect(req.session.returnTo) ? req.session.returnTo : '/dashboard';
+    await req.session.regenerate();
     req.session.userId = user.id;
-    delete req.session.impersonatingUserId;
-    const dest = req.session.returnTo || '/dashboard';
-    delete req.session.returnTo;
     return reply.redirect(dest);
   });
 };

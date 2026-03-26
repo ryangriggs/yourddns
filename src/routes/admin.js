@@ -140,7 +140,7 @@ module.exports = async function adminRoutes(fastify) {
       zone.static_records = db.prepare('SELECT * FROM zone_static_records WHERE zone_id = ? ORDER BY type, name').all(zone.id);
       zone.ns_list = JSON.parse(zone.ns_hostnames || '[]');
     }
-    return reply.view('admin/domains.njk', { title: 'Domains', zones, tiers, flash: flash(req) });
+    return reply.view('admin/domains.njk', { title: 'Domains', zones, tiers, settings: getAllSettings(), flash: flash(req) });
   });
 
   fastify.post('/admin/domains', async (req, reply) => {
@@ -160,6 +160,11 @@ module.exports = async function adminRoutes(fastify) {
     const tIds = Array.isArray(tier_ids) ? tier_ids : (tier_ids ? [tier_ids] : []);
     const ins = db.prepare('INSERT OR IGNORE INTO zone_tiers (zone_id, tier_id) VALUES (?, ?)');
     withTransaction(() => { for (const t of tIds) ins.run(zoneId, t); });
+
+    const siteIp = getSetting('site_ip') || '';
+    if (siteIp) {
+      db.prepare('INSERT OR IGNORE INTO zone_static_records (zone_id, name, type, value, ttl) VALUES (?, ?, ?, ?, ?)').run(zoneId, '@', 'A', siteIp, 300);
+    }
 
     req.session.flash = { type: 'success', message: 'Zone created.' };
     return reply.redirect('/admin/domains');
@@ -208,6 +213,18 @@ module.exports = async function adminRoutes(fastify) {
     const db = getDb();
     db.prepare('DELETE FROM zone_static_records WHERE id = ?').run(req.params.id);
     req.session.flash = { type: 'success', message: 'Record deleted.' };
+    return reply.redirect('/admin/domains');
+  });
+
+  fastify.post('/admin/domains/:id/add-apex-a', async (req, reply) => {
+    const db = getDb();
+    const siteIp = getSetting('site_ip') || '';
+    if (!siteIp) {
+      req.session.flash = { type: 'error', message: 'Server IP is not configured in Settings.' };
+      return reply.redirect('/admin/domains');
+    }
+    db.prepare('INSERT OR IGNORE INTO zone_static_records (zone_id, name, type, value, ttl) VALUES (?, ?, ?, ?, ?)').run(req.params.id, '@', 'A', siteIp, 300);
+    req.session.flash = { type: 'success', message: 'A record added.' };
     return reply.redirect('/admin/domains');
   });
 
@@ -288,7 +305,7 @@ module.exports = async function adminRoutes(fastify) {
   });
 
   fastify.post('/admin/settings', async (req, reply) => {
-    const textFields = ['site_name','site_domain','site_url','support_email','otp_resend_interval_minutes','otp_max_attempts_per_hour','password_max_attempts_per_hour','stripe_publishable_key','news_content','global_min_ttl','ns_primary','ns_secondary','zone_validation_timeout_hours'];
+    const textFields = ['site_name','site_domain','site_url','site_ip','support_email','otp_resend_interval_minutes','otp_max_attempts_per_hour','password_max_attempts_per_hour','stripe_publishable_key','news_content','global_min_ttl','ns_primary','ns_secondary','zone_validation_timeout_hours'];
     const checkboxFields = ['registration_enabled','stripe_enabled'];
     for (const key of textFields) {
       if (req.body[key] !== undefined) setSetting(key, req.body[key]);

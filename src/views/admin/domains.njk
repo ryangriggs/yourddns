@@ -28,6 +28,19 @@
           </form>
         </div>
       </div>
+      {% set hasApexA = zone.static_records | selectattr('type', 'equalto', 'A') | selectattr('name', 'equalto', '@') | list | length > 0 %}
+      {% if zone.is_active and not hasApexA %}
+      <div class="alert alert-warning" style="margin:0 0 0 0;border-radius:0;border-left:none;border-right:none;border-top:none;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <span>No apex A record — <strong>{{ zone.domain }}</strong> won't redirect without one.</span>
+        {% if settings.site_ip.value %}
+        <form method="post" action="/admin/domains/{{ zone.id }}/add-apex-a" style="flex-shrink:0">
+          <button type="submit" class="btn btn-sm btn-primary">Add A record ({{ settings.site_ip.value }})</button>
+        </form>
+        {% else %}
+        <a href="/admin/settings" class="btn btn-sm btn-outline">Set Server IP in Settings</a>
+        {% endif %}
+      </div>
+      {% endif %}
       <div class="card-body">
         <div class="zone-info-grid">
           <div class="info-row"><span class="info-label">NS Records</span><span class="mono">{% for ns in zone.ns_list %}{{ ns }}{% if not loop.last %}, {% endif %}{% endfor %}</span></div>

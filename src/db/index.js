@@ -71,6 +71,7 @@ async function initDb() {
   ensureSettings.run('ns_primary',                    process.env.NS_PRIMARY   || 'ns1.yourddns.com', 'Primary nameserver hostname');
   ensureSettings.run('ns_secondary',                  process.env.NS_SECONDARY || 'ns2.yourddns.com', 'Secondary nameserver hostname');
   ensureSettings.run('zone_validation_timeout_hours', '48',                                            'Hours before a pending custom domain is removed if not validated');
+  ensureSettings.run('site_ip',                       '',                                              'Server IP address — auto-added as apex A record when zones are created');
 
   await seedDefaultData();
   await bootstrapAdmin();

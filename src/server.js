@@ -158,13 +158,22 @@ async function build() {
   // Error handler
   fastify.setErrorHandler(async (err, req, reply) => {
     fastify.log.error(err);
-    return reply.code(err.statusCode || 500).view('errors/500.njk', { title: 'Error', message: err.message });
+    const message = process.env.NODE_ENV === 'production' ? 'An unexpected error occurred.' : err.message;
+    return reply.code(err.statusCode || 500).view('errors/500.njk', { title: 'Error', message });
   });
 
   return fastify;
 }
 
 async function start() {
+  // Warn loudly if default secrets are in use
+  if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'default-secret-change-this-in-production-min32chars!!') {
+    console.warn('[SECURITY] SESSION_SECRET is not set or is using the default value. Set a strong random secret in .env before going to production.');
+  }
+  if (!process.env.PAT_HMAC_SECRET || process.env.PAT_HMAC_SECRET === 'default-secret-change-me') {
+    console.warn('[SECURITY] PAT_HMAC_SECRET is not set or is using the default value. API keys are not secure. Set a strong random secret in .env.');
+  }
+
   await initDb();
   const app = await build();
   const port = parseInt(process.env.PORT || '3000', 10);
