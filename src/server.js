@@ -99,6 +99,7 @@ async function build() {
       siteName: getSetting('site_name') || 'YourDDNS',
       siteUrl: getSetting('site_url') || '',
       appVersion: version,
+      paypalDonationUrl: getSetting('paypal_donation_url') || '',
     };
   });
 
@@ -125,7 +126,8 @@ async function build() {
     const tiers = db.prepare("SELECT * FROM tiers ORDER BY sort_order").all();
     const newsContent = getSetting('news_content') || '';
     const registrationEnabled = getSetting('registration_enabled') !== 'false';
-    return reply.view('landing.njk', { title: 'Dynamic DNS for Everyone', tiers, newsContent, registrationEnabled });
+    const subscriptionsEnabled = getSetting('subscriptions_enabled') === 'true';
+    return reply.view('landing.njk', { title: 'Dynamic DNS for Everyone', tiers, newsContent, registrationEnabled, subscriptionsEnabled });
   });
 
   fastify.get('/terms', async (req, reply) => {
@@ -133,6 +135,11 @@ async function build() {
       title: 'Terms & Conditions',
       supportEmail: getSetting('support_email') || process.env.SUPPORT_EMAIL || '',
     });
+  });
+
+  fastify.get('/donate', async (req, reply) => {
+    const paypalUrl = getSetting('paypal_donation_url') || '';
+    return reply.view('donate.njk', { title: 'Support YourDDNS', paypalUrl });
   });
 
   await fastify.register(require('./routes/auth'));

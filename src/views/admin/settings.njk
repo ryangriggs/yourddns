@@ -93,8 +93,26 @@
     </div>
 
     <div class="card mb-4">
-      <div class="card-header"><h2 class="card-title">Stripe</h2></div>
+      <div class="card-header"><h2 class="card-title">Donations</h2></div>
       <div class="card-body">
+        <div class="form-group">
+          <label class="form-label">PayPal Donation URL</label>
+          <input type="url" name="paypal_donation_url" class="form-input" value="{{ settings.paypal_donation_url.value }}" placeholder="https://www.paypal.com/donate?hosted_button_id=...">
+          <p class="form-hint">Shown on the /donate page and linked from the dashboard banner. Leave blank to hide donation prompts.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header"><h2 class="card-title">Subscriptions &amp; Billing</h2></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label class="form-label flex gap-2 items-center">
+            <input type="checkbox" name="subscriptions_enabled" value="true" {% if settings.subscriptions_enabled.value == 'true' %}checked{% endif %}>
+            Show paid plans and upgrade prompts
+          </label>
+          <p class="form-hint">When off, all users get free-tier limits with no upgrade UI. Tiers still apply for rate limiting.</p>
+        </div>
         <div class="form-group">
           <label class="form-label flex gap-2 items-center">
             <input type="checkbox" name="stripe_enabled" value="true" {% if settings.stripe_enabled.value == 'true' %}checked{% endif %}>
@@ -102,7 +120,7 @@
           </label>
         </div>
         <div class="form-group">
-          <label class="form-label">Publishable Key</label>
+          <label class="form-label">Stripe Publishable Key</label>
           <input type="text" name="stripe_publishable_key" class="form-input" value="{{ settings.stripe_publishable_key.value }}">
         </div>
       </div>

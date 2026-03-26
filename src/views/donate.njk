@@ -1,0 +1,48 @@
+{% extends "layouts/landing.njk" %}
+{% block content %}
+<section class="landing-hero" style="padding-bottom:3rem">
+  <div class="landing-container" style="max-width:680px">
+    <h1 class="landing-hero-title" style="font-size:2rem">Support YourDDNS</h1>
+    <p class="landing-hero-sub">YourDDNS is free, open-source software. There are no paid plans — just a tool built for developers who need reliable dynamic DNS.</p>
+  </div>
+</section>
+
+<section class="landing-section">
+  <div class="landing-container" style="max-width:680px">
+    <div class="card mb-4">
+      <div class="card-body" style="padding:2rem">
+        <h2 style="margin:0 0 0.75rem;font-size:1.25rem">Why donate?</h2>
+        <p style="color:#6b7280;line-height:1.7">Running a public DNS service has real costs: servers, bandwidth, and time. Your contribution — any amount — helps keep the service running, the domain zones active, and the project maintained.</p>
+        <ul style="color:#6b7280;line-height:2;margin:1rem 0 0;padding-left:1.25rem">
+          <li>Covers server and bandwidth costs</li>
+          <li>Supports ongoing development and bug fixes</li>
+          <li>Keeps the service free for everyone</li>
+        </ul>
+      </div>
+    </div>
+
+    {% if paypalUrl %}
+    <div class="card mb-4">
+      <div class="card-body" style="padding:2rem;text-align:center">
+        <h2 style="margin:0 0 0.5rem;font-size:1.25rem">Donate via PayPal</h2>
+        <p style="color:#6b7280;margin-bottom:1.5rem">Choose any amount. One-time or recurring — PayPal lets you decide.</p>
+        <a href="{{ paypalUrl }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="font-size:1rem;padding:0.75rem 2rem">
+          Donate with PayPal
+        </a>
+        <p style="color:#9ca3af;font-size:0.8rem;margin-top:1rem">Opens PayPal in a new tab. No account required for one-time donations.</p>
+      </div>
+    </div>
+    {% else %}
+    <div class="card mb-4">
+      <div class="card-body" style="padding:2rem;text-align:center;color:#6b7280">
+        <p>Donation links coming soon. Check back later or reach out via GitHub.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <div style="text-align:center;margin-top:1.5rem">
+      <a href="/" style="color:#6b7280;font-size:0.9rem">← Back to home</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

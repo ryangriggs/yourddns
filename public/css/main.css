@@ -299,6 +299,32 @@ a:hover { text-decoration: underline; }
 }
 .btn-google:hover { background: #f9fafb; border-color: #9ca3af; }
 
+/* ── Donation banner ─────────────────────────────────────────────────────── */
+.donation-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  padding: 10px 24px;
+  font-size: 0.875rem;
+  color: #78350f;
+}
+.donation-banner-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.donation-banner-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #92400e;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+}
+.donation-banner-close:hover { opacity: 1; }
+
 /* ── Forms ───────────────────────────────────────────────────────────────── */
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

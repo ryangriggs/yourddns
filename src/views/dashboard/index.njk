@@ -1,6 +1,17 @@
 {% extends "layouts/base.njk" %}
 {% set activePage = 'dashboard' %}
 {% block content %}
+{% if paypalDonationUrl %}
+<div class="donation-banner" id="donationBanner">
+  <span>YourDDNS is free and open-source. If it's useful to you, consider supporting the project.</span>
+  <div class="donation-banner-actions">
+    <a href="/donate" class="btn btn-sm btn-outline">Support the project</a>
+    <button class="donation-banner-close" onclick="dismissDonationBanner()" aria-label="Dismiss">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+{% endif %}
 <div class="page-container">
   <div class="page-header">
     <div>
@@ -206,6 +217,17 @@
 
 {% block scripts %}
 <script>
+(function() {
+  if (localStorage.getItem('donationDismissed') === '1') {
+    const b = document.getElementById('donationBanner');
+    if (b) b.remove();
+  }
+})();
+function dismissDonationBanner() {
+  localStorage.setItem('donationDismissed', '1');
+  const b = document.getElementById('donationBanner');
+  if (b) b.style.display = 'none';
+}
 const recordsData = {
   {% for record in records %}
   {{ record.id }}: {ip: {{ record.ip_address | json }}, ip6: {{ record.ip6_address | json }}, ttl: {{ record.ttl }}, fqdn: {{ (record.subdomain + '.' + record.zone_domain) | json }} }{% if not loop.last %},{% endif %}

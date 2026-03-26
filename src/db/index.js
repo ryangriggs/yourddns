@@ -72,6 +72,8 @@ async function initDb() {
   ensureSettings.run('ns_secondary',                  process.env.NS_SECONDARY || 'ns2.yourddns.com', 'Secondary nameserver hostname');
   ensureSettings.run('zone_validation_timeout_hours', '48',                                            'Hours before a pending custom domain is removed if not validated');
   ensureSettings.run('site_ip',                       '',                                              'Server IP address — auto-added as apex A record when zones are created');
+  ensureSettings.run('subscriptions_enabled',         'false',                                         'Show paid plans and upgrade prompts');
+  ensureSettings.run('paypal_donation_url',           '',                                              'PayPal donation link shown on the /donate page');
 
   await seedDefaultData();
   await bootstrapAdmin();
@@ -102,6 +104,8 @@ async function seedDefaultData() {
     ['otp_max_attempts_per_hour',   '5',     'Max OTP code attempts per hour per user'],
     ['password_max_attempts_per_hour', '10', 'Max password login attempts per hour'],
     ['registration_enabled',        'true',  'Allow new user registrations'],
+    ['subscriptions_enabled',       'false', 'Show paid plans and upgrade prompts'],
+    ['paypal_donation_url',         '',      'PayPal donation link shown on the /donate page'],
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
     ['news_content',                '', 'News/announcement block shown on landing page'],
