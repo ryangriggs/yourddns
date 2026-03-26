@@ -4,22 +4,56 @@
 <div class="page-container">
   <div class="page-header">
     <h1 class="page-title">All Records</h1>
-    <span class="text-muted">{{ records | length }} total</span>
+    <span class="text-muted">{{ total }} total</span>
   </div>
 
   {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  {# Filter bar #}
+  <form method="get" action="/admin/records" class="filter-bar mb-4">
+    <input type="text" name="domain" class="form-input form-input-sm" placeholder="Domain / subdomain" value="{{ filters.domain }}" style="max-width:180px">
+    <input type="text" name="user"   class="form-input form-input-sm" placeholder="User email" value="{{ filters.user }}" style="max-width:180px">
+    <input type="text" name="ip"     class="form-input form-input-sm" placeholder="IP (partial)" value="{{ filters.ip }}" style="max-width:150px">
+    <select name="status" class="form-select form-input-sm" style="max-width:120px">
+      <option value="">All status</option>
+      <option value="active"   {% if filters.status == 'active'   %}selected{% endif %}>Active</option>
+      <option value="disabled" {% if filters.status == 'disabled' %}selected{% endif %}>Disabled</option>
+    </select>
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="dir"  value="{{ dir }}">
+    <input type="hidden" name="per"  value="{{ per }}">
+    <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+    <a href="/admin/records" class="btn btn-sm btn-outline">Clear</a>
+    <span class="text-muted" style="margin-left:auto;font-size:0.8125rem">
+      Per page:
+      {% for n in [10, 50, 100, 500] %}
+      <a href="?domain={{ filters.domain }}&user={{ filters.user }}&ip={{ filters.ip }}&status={{ filters.status }}&sort={{ sort }}&dir={{ dir }}&per={{ n }}&page=1"
+         class="{% if per == n %}font-bold{% endif %}" style="margin:0 3px">{{ n }}</a>
+      {% endfor %}
+    </span>
+  </form>
+
+  {# Build query string helper for sort links and action forms #}
+  {% set qs = 'domain=' + filters.domain + '&user=' + filters.user + '&ip=' + filters.ip + '&status=' + filters.status + '&sort=' + sort + '&dir=' + dir + '&per=' + per + '&page=' + page %}
+
+  {# Sort link macro #}
+  {% macro sortLink(col, label) %}
+    {% set nextDir = 'asc' if (sort == col and dir == 'desc') else 'desc' %}
+    {% set arrow = ' ↑' if (sort == col and dir == 'asc') else (' ↓' if (sort == col and dir == 'desc') else '') %}
+    <a href="?domain={{ filters.domain }}&user={{ filters.user }}&ip={{ filters.ip }}&status={{ filters.status }}&sort={{ col }}&dir={{ nextDir }}&per={{ per }}&page=1" style="color:inherit;text-decoration:none;white-space:nowrap">{{ label }}{{ arrow }}</a>
+  {% endmacro %}
 
   <div class="table-card">
     <table class="table">
       <thead>
         <tr>
-          <th>Subdomain</th>
-          <th>User</th>
-          <th>IP</th>
-          <th>TTL</th>
-          <th>Hits</th>
-          <th>Last Update</th>
-          <th>Status</th>
+          <th>{{ sortLink('subdomain', 'Subdomain') }}</th>
+          <th>{{ sortLink('user', 'User') }}</th>
+          <th>{{ sortLink('ip', 'IP') }}</th>
+          <th>{{ sortLink('ttl', 'TTL') }}</th>
+          <th>{{ sortLink('hits', 'Hits') }}</th>
+          <th>{{ sortLink('updated', 'Last Update') }}</th>
+          <th>{{ sortLink('status', 'Status') }}</th>
           <th></th>
         </tr>
       </thead>
@@ -28,7 +62,10 @@
         <tr class="{% if not r.is_enabled %}row-disabled{% endif %}">
           <td class="mono">{{ r.subdomain }}.{{ r.zone_domain }}</td>
           <td class="text-muted">{{ r.user_email }}</td>
-          <td class="mono">{{ r.ip_address or '—' }}</td>
+          <td class="mono">
+            {{ r.ip_address or '—' }}
+            {% if r.ip6_address %}<br><span style="font-size:0.8em;color:#6b7280">{{ r.ip6_address }}</span>{% endif %}
+          </td>
           <td class="mono">{{ r.ttl }}s</td>
           <td>{{ r.hit_count }}</td>
           <td class="text-muted">{{ r.last_update_received_at | date('relative') }}</td>
@@ -40,12 +77,13 @@
               </button>
               <div class="row-dropdown" id="rowMenur{{ r.id }}">
                 {% if r.is_enabled %}
-                <form method="post" action="/admin/records/{{ r.id }}/disable"><button type="submit" class="dropdown-item">Disable</button></form>
+                <form method="post" action="/admin/records/{{ r.id }}/disable"><input type="hidden" name="_qs" value="{{ qs }}"><button type="submit" class="dropdown-item">Disable</button></form>
                 {% else %}
-                <form method="post" action="/admin/records/{{ r.id }}/enable"><button type="submit" class="dropdown-item">Enable</button></form>
+                <form method="post" action="/admin/records/{{ r.id }}/enable"><input type="hidden" name="_qs" value="{{ qs }}"><button type="submit" class="dropdown-item">Enable</button></form>
                 {% endif %}
                 <div class="dropdown-divider"></div>
                 <form method="post" action="/admin/records/{{ r.id }}/delete" onsubmit="return confirm('Delete this record?')">
+                  <input type="hidden" name="_qs" value="{{ qs }}">
                   <button type="submit" class="dropdown-item text-danger">Delete</button>
                 </form>
               </div>
@@ -53,8 +91,25 @@
           </td>
         </tr>
         {% endfor %}
+        {% if records | length == 0 %}
+        <tr><td colspan="8" class="text-muted" style="text-align:center;padding:2rem">No records match your filters.</td></tr>
+        {% endif %}
       </tbody>
     </table>
   </div>
+
+  {# Pagination #}
+  {% if totalPages > 1 %}
+  <div class="pagination mt-4">
+    {% if page > 1 %}
+    <a href="?domain={{ filters.domain }}&user={{ filters.user }}&ip={{ filters.ip }}&status={{ filters.status }}&sort={{ sort }}&dir={{ dir }}&per={{ per }}&page={{ page - 1 }}" class="btn btn-sm btn-outline">← Prev</a>
+    {% endif %}
+    <span class="text-muted" style="font-size:0.875rem">Page {{ page }} of {{ totalPages }}</span>
+    {% if page < totalPages %}
+    <a href="?domain={{ filters.domain }}&user={{ filters.user }}&ip={{ filters.ip }}&status={{ filters.status }}&sort={{ sort }}&dir={{ dir }}&per={{ per }}&page={{ page + 1 }}" class="btn btn-sm btn-outline">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}

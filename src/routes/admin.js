@@ -235,45 +235,78 @@ module.exports = async function adminRoutes(fastify) {
 
   fastify.get('/admin/records', async (req, reply) => {
     const db = getDb();
-    const records = db.prepare(`
-      SELECT r.*, z.domain as zone_domain, u.email as user_email
-      FROM ddns_records r
-      JOIN zones z ON z.id = r.zone_id
-      JOIN users u ON u.id = r.user_id
-      ORDER BY r.created_at DESC
-    `).all();
-    return reply.view('admin/records.njk', { title: 'All Records', records, flash: flash(req) });
+    const { domain = '', user = '', ip = '', status = '', sort = 'created_at', dir = 'desc', page = '1', per = '50' } = req.query || {};
+
+    const validSorts = { subdomain: 'r.subdomain', user: 'u.email', ip: 'r.ip_address', ttl: 'r.ttl', hits: 'r.hit_count', updated: 'r.last_update_received_at', created: 'r.created_at', status: 'r.is_enabled' };
+    const sortCol = validSorts[sort] || 'r.created_at';
+    const sortDir = dir === 'asc' ? 'ASC' : 'DESC';
+    const perPage = [10, 50, 100, 500].includes(Number(per)) ? Number(per) : 50;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const offset = (pageNum - 1) * perPage;
+
+    const conditions = ['1=1'];
+    const params = [];
+    if (domain) { conditions.push("(r.subdomain || '.' || z.domain) LIKE ?"); params.push(`%${domain}%`); }
+    if (user)   { conditions.push('u.email LIKE ?'); params.push(`%${user}%`); }
+    if (ip)     { conditions.push('(r.ip_address LIKE ? OR r.ip6_address LIKE ?)'); params.push(`%${ip}%`, `%${ip}%`); }
+    if (status === 'active')   { conditions.push('r.is_enabled = 1'); }
+    if (status === 'disabled') { conditions.push('r.is_enabled = 0'); }
+
+    const where = conditions.join(' AND ');
+    const base = `FROM ddns_records r JOIN zones z ON z.id = r.zone_id JOIN users u ON u.id = r.user_id WHERE ${where}`;
+
+    const total = db.prepare(`SELECT COUNT(*) as c ${base}`).get(...params).c;
+    const records = db.prepare(`SELECT r.*, z.domain as zone_domain, u.email as user_email ${base} ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`).all(...params, perPage, offset);
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+    return reply.view('admin/records.njk', {
+      title: 'All Records', records, flash: flash(req),
+      filters: { domain, user, ip, status },
+      sort, dir, page: pageNum, per: perPage, total, totalPages,
+    });
   });
 
   fastify.post('/admin/records/:id/enable', async (req, reply) => {
     const db = getDb();
     db.prepare('UPDATE ddns_records SET is_enabled = 1 WHERE id = ?').run(req.params.id);
-    return reply.redirect('/admin/records');
+    const qs = req.body?._qs || '';
+    return reply.redirect('/admin/records' + (qs ? '?' + qs : ''));
   });
 
   fastify.post('/admin/records/:id/disable', async (req, reply) => {
     const db = getDb();
     db.prepare('UPDATE ddns_records SET is_enabled = 0 WHERE id = ?').run(req.params.id);
-    return reply.redirect('/admin/records');
+    const qs = req.body?._qs || '';
+    return reply.redirect('/admin/records' + (qs ? '?' + qs : ''));
   });
 
   fastify.post('/admin/records/:id/delete', async (req, reply) => {
     const db = getDb();
     db.prepare('DELETE FROM ddns_records WHERE id = ?').run(req.params.id);
     req.session.flash = { type: 'success', message: 'Record deleted.' };
-    return reply.redirect('/admin/records');
+    const qs = req.body?._qs || '';
+    return reply.redirect('/admin/records' + (qs ? '?' + qs : ''));
   });
 
   // ── Blocked IPs ────────────────────────────────────────────────────────────
 
   fastify.get('/admin/blocked-ips', async (req, reply) => {
     const db = getDb();
+    const { sort = 'created_at', dir = 'desc', page = '1', per = '50' } = req.query || {};
+    const validSorts = { ip: 'b.ip_address', reason: 'b.reason', blocked_by: 'u.email', date: 'b.created_at' };
+    const sortCol = validSorts[sort] || 'b.created_at';
+    const sortDir = dir === 'asc' ? 'ASC' : 'DESC';
+    const perPage = [10, 50, 100, 500].includes(Number(per)) ? Number(per) : 50;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const offset = (pageNum - 1) * perPage;
+    const total = db.prepare('SELECT COUNT(*) as c FROM blocked_ips').get().c;
     const ips = db.prepare(`
       SELECT b.*, u.email as created_by_email
       FROM blocked_ips b LEFT JOIN users u ON u.id = b.created_by
-      ORDER BY b.created_at DESC
-    `).all();
-    return reply.view('admin/blocked-ips.njk', { title: 'Blocked IPs', ips, flash: flash(req) });
+      ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?
+    `).all(perPage, offset);
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    return reply.view('admin/blocked-ips.njk', { title: 'Blocked IPs', ips, flash: flash(req), sort, dir, page: pageNum, per: perPage, total, totalPages });
   });
 
   fastify.post('/admin/blocked-ips', async (req, reply) => {
@@ -384,10 +417,22 @@ module.exports = async function adminRoutes(fastify) {
   // ── Backups ────────────────────────────────────────────────────────────────
 
   fastify.get('/admin/backups', async (req, reply) => {
-    const backups = listBackups();
+    const { sort = 'created_at', dir = 'desc', page = '1', per = '50' } = req.query || {};
+    let backups = listBackups();
+    // Sort
+    backups.sort((a, b) => {
+      let av = sort === 'size' ? a.size : a.created_at;
+      let bv = sort === 'size' ? b.size : b.created_at;
+      return dir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+    });
+    const total = backups.length;
+    const perPage = [10, 50, 100, 500].includes(Number(per)) ? Number(per) : 50;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    backups = backups.slice((pageNum - 1) * perPage, pageNum * perPage);
     const intervalHours = getSetting('backup_interval_hours') || '24';
     const retentionDays = getSetting('backup_retention_days') || '30';
-    return reply.view('admin/backups.njk', { title: 'Backups', backups, intervalHours, retentionDays, flash: flash(req) });
+    return reply.view('admin/backups.njk', { title: 'Backups', backups, intervalHours, retentionDays, flash: flash(req), sort, dir, page: pageNum, per: perPage, total, totalPages });
   });
 
   fastify.post('/admin/backups/create', async (req, reply) => {
@@ -494,14 +539,24 @@ module.exports = async function adminRoutes(fastify) {
 
   fastify.get('/admin/stats', async (req, reply) => {
     const db = getDb();
+    const { sort = 'subdomain', dir = 'asc', page = '1', per = '50' } = req.query || {};
+    const validSorts = { subdomain: 'r.subdomain', zone: 'z.domain', user: 'u.email', ip: 'r.ip_address', hits: 'r.hit_count', updated: 'r.last_update_received_at' };
+    const sortCol = validSorts[sort] || 'r.subdomain';
+    const sortDir = dir === 'desc' ? 'DESC' : 'ASC';
+    const perPage = [10, 50, 100, 500].includes(Number(per)) ? Number(per) : 50;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const offset = (pageNum - 1) * perPage;
+    const total = db.prepare('SELECT COUNT(*) as c FROM ddns_records').get().c;
     const records = db.prepare(`
-      SELECT r.id, r.subdomain, z.domain as zone_domain, u.email as user_email
+      SELECT r.id, r.subdomain, r.ip_address, r.ip6_address, r.hit_count, r.last_update_received_at,
+             z.domain as zone_domain, u.email as user_email
       FROM ddns_records r
       JOIN zones z ON z.id = r.zone_id
       JOIN users u ON u.id = r.user_id
-      ORDER BY r.subdomain
-    `).all();
-    return reply.view('admin/stats.njk', { title: 'Stats', records });
+      ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?
+    `).all(perPage, offset);
+    const totalPages = Math.max(1, Math.ceil(total / perPage));
+    return reply.view('admin/stats.njk', { title: 'Stats', records, sort, dir, page: pageNum, per: perPage, total, totalPages });
   });
 
   fastify.get('/admin/stats/data', async (req, reply) => {

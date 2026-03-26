@@ -27,6 +27,12 @@
   </div>
   {% endif %}
 
+  {% macro sortLink(col, label) %}
+    {% set nextDir = 'asc' if (sort == col and dir == 'desc') else 'desc' %}
+    {% set arrow = ' ↑' if (sort == col and dir == 'asc') else (' ↓' if (sort == col and dir == 'desc') else '') %}
+    <a href="?sort={{ col }}&dir={{ nextDir }}" style="color:inherit;text-decoration:none;white-space:nowrap">{{ label }}{{ arrow }}</a>
+  {% endmacro %}
+
   {% if zones | length == 0 %}
   <div class="empty-state">
     <h3>No validated custom domains</h3>
@@ -42,7 +48,13 @@
   <div class="table-card mb-6">
     <table class="table">
       <thead>
-        <tr><th>Name</th><th>Zone</th><th>Created</th><th>Last Used</th><th></th></tr>
+        <tr>
+          <th>{{ sortLink('name', 'Name') }}</th>
+          <th>{{ sortLink('zone', 'Zone') }}</th>
+          <th>{{ sortLink('created', 'Created') }}</th>
+          <th>{{ sortLink('last_used', 'Last Used') }}</th>
+          <th></th>
+        </tr>
       </thead>
       <tbody>
         {% for key in keys %}

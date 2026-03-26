@@ -396,12 +396,17 @@ module.exports = async function dashboardRoutes(fastify) {
   // GET /dashboard/api-keys
   fastify.get('/dashboard/api-keys', async (req, reply) => {
     const db = getDb();
+    const { sort = 'created', dir = 'desc' } = req.query || {};
+    const validSorts = { name: 'k.name', zone: 'z.domain', created: 'k.created_at', last_used: 'k.last_used_at' };
+    const sortCol = validSorts[sort] || 'k.created_at';
+    const sortDir = dir === 'asc' ? 'ASC' : 'DESC';
+
     const keys = db.prepare(`
       SELECT k.*, z.domain as zone_domain
       FROM zone_api_keys k
       JOIN zones z ON z.id = k.zone_id
       WHERE k.user_id = ?
-      ORDER BY k.created_at DESC
+      ORDER BY ${sortCol} ${sortDir}
     `).all(req.user.id);
 
     const zones = db.prepare(`
@@ -419,6 +424,8 @@ module.exports = async function dashboardRoutes(fastify) {
       zones,
       flash,
       newKey,
+      sort,
+      dir,
       siteUrl: getSetting('site_url') || '',
     });
   });

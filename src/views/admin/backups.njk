@@ -11,68 +11,82 @@
 
   {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
 
-  <div class="settings-grid">
+  {% macro sortLink(col, label) %}
+    {% set nextDir = 'asc' if (sort == col and dir == 'desc') else 'desc' %}
+    {% set arrow = ' ↑' if (sort == col and dir == 'asc') else (' ↓' if (sort == col and dir == 'desc') else '') %}
+    <a href="?sort={{ col }}&dir={{ nextDir }}&per={{ per }}&page=1" style="color:inherit;text-decoration:none;white-space:nowrap">{{ label }}{{ arrow }}</a>
+  {% endmacro %}
 
-    {# Backup list #}
-    <div class="settings-card" style="grid-column: 1 / -1;">
-      <div class="settings-card-header">
-        <h2 class="settings-card-title">Available Backups</h2>
-        <p class="settings-card-desc">Scheduled every {{ intervalHours }} hours &mdash; kept for {{ retentionDays }} days. Configure in <a href="/admin/settings#backup">Settings</a>.</p>
-      </div>
-
-      {% if backups | length == 0 %}
-      <div class="empty-state"><p class="text-muted">No backups yet. Click "Create Backup Now" to create one.</p></div>
-      {% else %}
-      <div class="table-card" style="margin:0;border:none;box-shadow:none;">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Filename</th>
-              <th>Size</th>
-              <th>Created</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for b in backups %}
-            <tr>
-              <td class="font-mono" style="font-size:0.8rem">{{ b.filename }}</td>
-              <td>{{ (b.size / 1024) | round(1) }} KB</td>
-              <td>{{ b.created_at | date }}</td>
-              <td class="text-right" style="white-space:nowrap">
-                <a href="/admin/backups/{{ b.filename }}/download" class="btn btn-sm btn-outline" download>Download</a>
-                <form method="POST" action="/admin/backups/{{ b.filename }}/delete" style="display:inline" onsubmit="return confirm('Delete this backup?')">
-                  <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% endif %}
+  <div class="card mb-4">
+    <div class="card-header">
+      <h2 class="card-title">Available Backups <span class="text-muted" style="font-size:0.8125rem;font-weight:400">{{ total }} total</span></h2>
+      <span class="text-muted" style="font-size:0.8125rem">Every {{ intervalHours }}h &mdash; kept {{ retentionDays }}d &mdash; <a href="/admin/settings#settings-backups">Configure</a></span>
     </div>
 
-    {# Restore #}
-    <div class="settings-card" style="grid-column: 1 / -1;">
-      <div class="settings-card-header">
-        <h2 class="settings-card-title">Restore from Backup</h2>
-        <p class="settings-card-desc">
-          Upload a <code>.zip</code> backup file to restore the database. A safety backup of the current database will be created automatically before the restore begins.
-          <strong>All users will be logged out after restore.</strong>
-        </p>
-      </div>
+    {% if total == 0 %}
+    <div class="card-body"><p class="text-muted">No backups yet. Click "Create Backup Now" to create one.</p></div>
+    {% else %}
+
+    <div class="filter-bar" style="padding:12px 16px 0">
+      <span class="text-muted" style="font-size:0.8125rem">Per page:
+        {% for n in [10, 50, 100, 500] %}
+        <a href="?sort={{ sort }}&dir={{ dir }}&per={{ n }}&page=1" class="{% if per == n %}font-bold{% endif %}" style="margin:0 3px">{{ n }}</a>
+        {% endfor %}
+      </span>
+    </div>
+
+    <table class="table" style="margin-top:8px">
+      <thead>
+        <tr>
+          <th>{{ sortLink('created_at', 'Filename') }}</th>
+          <th>{{ sortLink('size', 'Size') }}</th>
+          <th>{{ sortLink('created_at', 'Created') }}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in backups %}
+        <tr>
+          <td class="mono" style="font-size:0.8rem">{{ b.filename }}</td>
+          <td>{{ (b.size / 1024) | round(1) }} KB</td>
+          <td class="text-muted">{{ b.created_at | date }}</td>
+          <td class="text-right" style="white-space:nowrap">
+            <a href="/admin/backups/{{ b.filename }}/download" class="btn btn-sm btn-outline" download>Download</a>
+            <form method="POST" action="/admin/backups/{{ b.filename }}/delete" style="display:inline" onsubmit="return confirm('Delete this backup?')">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if totalPages > 1 %}
+    <div class="pagination" style="padding:12px 16px">
+      {% if page > 1 %}<a href="?sort={{ sort }}&dir={{ dir }}&per={{ per }}&page={{ page - 1 }}" class="btn btn-sm btn-outline">← Prev</a>{% endif %}
+      <span class="text-muted" style="font-size:0.875rem">Page {{ page }} of {{ totalPages }}</span>
+      {% if page < totalPages %}<a href="?sort={{ sort }}&dir={{ dir }}&per={{ per }}&page={{ page + 1 }}" class="btn btn-sm btn-outline">Next →</a>{% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Restore from Backup</h2></div>
+    <div class="card-body">
+      <p class="text-muted" style="margin-bottom:1rem;font-size:0.875rem">
+        Upload a <code>.zip</code> backup file to restore the database. A safety backup of the current database will be created automatically before the restore begins.
+        <strong>All users will be logged out after restore.</strong>
+      </p>
       <form method="POST" action="/admin/backups/restore" enctype="multipart/form-data" onsubmit="return confirm('This will replace the current database with the backup. A safety backup will be created first. Continue?')">
-        <div class="form-group" style="padding: 1rem 1.5rem;">
+        <div class="form-group">
           <label class="form-label">Backup ZIP file</label>
-          <input type="file" name="file" accept=".zip" required class="form-control">
+          <input type="file" name="file" accept=".zip" required class="form-input">
         </div>
-        <div style="padding: 0 1.5rem 1.5rem;">
-          <button type="submit" class="btn btn-danger">Restore Database</button>
-        </div>
+        <button type="submit" class="btn btn-danger">Restore Database</button>
       </form>
     </div>
-
   </div>
+
 </div>
 {% endblock %}

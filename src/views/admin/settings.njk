@@ -6,24 +6,10 @@
 
   {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
 
-  <div class="settings-layout">
+  <div class="settings-page">
 
-    <aside class="settings-sidenav">
-      <div class="settings-sidenav-inner">
-        <p class="settings-sidenav-title">Sections</p>
-        <nav class="settings-sidenav-nav" id="settingsSideNav">
-          <a href="#settings-site"      class="settings-sidenav-link active" data-target="settings-site">Site</a>
-          <a href="#settings-auth"      class="settings-sidenav-link" data-target="settings-auth">Authentication</a>
-          <a href="#settings-dns"       class="settings-sidenav-link" data-target="settings-dns">DNS</a>
-          <a href="#settings-donations" class="settings-sidenav-link" data-target="settings-donations">Donations</a>
-          <a href="#settings-backups"   class="settings-sidenav-link" data-target="settings-backups">Backups</a>
-          <a href="#settings-billing"   class="settings-sidenav-link" data-target="settings-billing">Billing</a>
-        </nav>
-        <button type="submit" form="settingsForm" class="btn btn-primary" style="width:100%;margin-top:1rem">Save All</button>
-      </div>
-    </aside>
-
-    <form id="settingsForm" method="post" action="/admin/settings" class="settings-main">
+    <div class="settings-form-col">
+    <form id="settingsForm" method="post" action="/admin/settings">
 
       <div class="card mb-4" id="settings-site">
         <div class="card-header"><h2 class="card-title">Site</h2></div>
@@ -205,6 +191,22 @@
 
       <button type="submit" class="btn btn-primary mb-6">Save Settings</button>
     </form>
+    </div>
+
+    <div class="settings-nav-col">
+      <div class="settings-sidenav-inner">
+        <p class="settings-sidenav-title">Sections</p>
+        <nav class="settings-sidenav-nav" id="settingsSideNav">
+          <a href="#settings-site"      class="settings-sidenav-link active" data-target="settings-site">Site</a>
+          <a href="#settings-auth"      class="settings-sidenav-link" data-target="settings-auth">Authentication</a>
+          <a href="#settings-dns"       class="settings-sidenav-link" data-target="settings-dns">DNS</a>
+          <a href="#settings-donations" class="settings-sidenav-link" data-target="settings-donations">Donations</a>
+          <a href="#settings-backups"   class="settings-sidenav-link" data-target="settings-backups">Backups</a>
+          <a href="#settings-billing"   class="settings-sidenav-link" data-target="settings-billing">Billing</a>
+        </nav>
+        <button type="submit" form="settingsForm" class="btn btn-primary" style="width:100%;margin-top:1rem">Save All</button>
+      </div>
+    </div>
 
   </div>
 </div>
@@ -321,10 +323,10 @@ function openEditTier(id) {
   const links = document.querySelectorAll('.settings-sidenav-link');
   if (!sections.length || !('IntersectionObserver' in window)) return;
 
-  const active = new Set();
+  const visible = new Set();
   const obs = new IntersectionObserver(entries => {
-    entries.forEach(e => e.isIntersecting ? active.add(e.target.id) : active.delete(e.target.id));
-    const first = sections.find(s => active.has(s.id));
+    entries.forEach(e => e.isIntersecting ? visible.add(e.target.id) : visible.delete(e.target.id));
+    const first = sections.find(s => visible.has(s.id));
     links.forEach(l => l.classList.toggle('active', first && l.dataset.target === first.id));
   }, { rootMargin: '-20% 0px -60% 0px' });
 
