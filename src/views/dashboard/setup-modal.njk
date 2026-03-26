@@ -13,12 +13,12 @@
 # /usr/local/bin/ddns-update-{{ record.subdomain }}.sh
 
 # Update IPv4 (auto-detected from outbound connection)
-curl -s -4 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}" >> /var/log/ddns.log 2>&1
+curl -s -4 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&name=$(hostname)" >> /var/log/ddns.log 2>&1
 
 # Update IPv6 (auto-detected from outbound connection)
-curl -s -6 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}" >> /var/log/ddns.log 2>&1</pre>
+curl -s -6 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&name=$(hostname)" >> /var/log/ddns.log 2>&1</pre>
   </div>
-  <p class="setup-desc mt-2" style="font-size:0.8125rem">The <code>-4</code> / <code>-6</code> flags force curl to connect over IPv4 or IPv6 so the server auto-detects and updates the correct record. Omit lines for address families you don't have.</p>
+  <p class="setup-desc mt-2" style="font-size:0.8125rem">The <code>-4</code> / <code>-6</code> flags force curl to connect over IPv4 or IPv6 so the server auto-detects and updates the correct record. The <code>name=$(hostname)</code> tags each update with the machine name for tracking in the dashboard. Omit lines for address families you don't have.</p>
   <p class="form-label mt-3">2. Make it executable:</p>
   <div class="code-block">
     <button class="code-copy" onclick="copyCode(this)">Copy</button>
@@ -37,7 +37,7 @@ Description=DDNS update for {{ fqdn }}
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'curl -s -4 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}" ; curl -s -6 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}"'</pre>
+ExecStart=/bin/bash -c 'curl -s -4 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&name=$(hostname)" ; curl -s -6 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&name=$(hostname)"'</pre>
   </div>
 </div>
 
@@ -47,7 +47,7 @@ ExecStart=/bin/bash -c 'curl -s -4 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={
   <div class="code-block">
     <button class="code-copy" onclick="copyCode(this)">Copy</button>
     <pre># PowerShell DDNS Update Script
-$url = "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}"
+$url = "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&name=$env:COMPUTERNAME"
 try {
     # Update IPv4
     $result4 = Invoke-RestMethod -Uri $url -Method Get
@@ -56,14 +56,14 @@ try {
     Add-Content -Path "C:\ddns\ddns.log" -Value "$(Get-Date) IPv4 ERROR: $_"
 }
 try {
-    # Update IPv6 (explicit ip6= param, or use ip6=auto to detect from connection)
-    $result6 = Invoke-RestMethod -Uri "$url&ip6=auto" -Method Get
+    # Update IPv6 (use ip6=YOUR_IPV6 to set a specific address)
+    $result6 = Invoke-RestMethod -Uri "$url&ip6=YOUR_IPV6" -Method Get
     Add-Content -Path "C:\ddns\ddns.log" -Value "$(Get-Date) IPv6: $result6"
 } catch {
     Add-Content -Path "C:\ddns\ddns.log" -Value "$(Get-Date) IPv6 ERROR: $_"
 }</pre>
   </div>
-  <p class="setup-desc mt-2" style="font-size:0.8125rem">Windows does not expose a simple way to force an IPv6 outbound connection. Use <code>&amp;ip6=YOUR_IPV6</code> to set a specific address, or omit if you only need IPv4.</p>
+  <p class="setup-desc mt-2" style="font-size:0.8125rem">The <code>$env:COMPUTERNAME</code> variable tags each update with the machine name so you can track which computer last updated the record. Use <code>&amp;ip6=YOUR_IPV6</code> to set a specific IPv6 address, or omit if you only need IPv4.</p>
   <p class="form-label mt-3">2. Register the scheduled task (run as Administrator):</p>
   <div class="code-block">
     <button class="code-copy" onclick="copyCode(this)">Copy</button>
@@ -77,14 +77,14 @@ Register-ScheduledTask -TaskName "DDNS-{{ record.subdomain }}" -Action $action -
   <p class="setup-desc">Make a GET request to update your IP. Omit <code>ip</code>/<code>ip6</code> to auto-detect from the connecting address.</p>
   <div class="code-block">
     <button class="code-copy" onclick="copyCode(this)">Copy</button>
-    <pre># Auto-detect IPv4 (connect over IPv4)
-curl -4 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}"
+    <pre># Auto-detect IPv4 (connect over IPv4), tag with computer name
+curl -4 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&name=MyPC"
 
 # Auto-detect IPv6 (connect over IPv6)
-curl -6 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}"
+curl -6 "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&name=MyPC"
 
 # Explicit addresses
-curl "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&ip=1.2.3.4&ip6=2001:db8::1"
+curl "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&ip=1.2.3.4&ip6=2001:db8::1&name=MyPC"
 
 # IPv4 only
 curl "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&ip=1.2.3.4"
@@ -98,6 +98,7 @@ curl "{{ updateUrl }}?key=YOUR_API_KEY&subdomain={{ fqdn }}&ip6=2001:db8::1"</pr
     <tr><td class="mono">subdomain</td><td>Full hostname, e.g. <code>{{ fqdn }}</code> (required)</td></tr>
     <tr><td class="mono">ip</td><td>IPv4 address to set; omit to auto-detect from connection</td></tr>
     <tr><td class="mono">ip6</td><td>IPv6 address to set; omit to auto-detect from connection</td></tr>
+    <tr><td class="mono">name</td><td>Computer/device name for update history tracking (optional, max 64 chars)</td></tr>
   </table>
   <p class="form-label mt-3">Response codes:</p>
   <table class="table table-sm mt-2">

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(head -20 grep -n \"name=\\\\|computer\\\\|?name\" C:/temp/yourddns/src/views/dashboard/api-keys.njk)",
+      "Bash(head -20 grep -n \"name=\\\\|computer\\\\|?name\" C:/temp/yourddns/README.md)"
     ]
   }
 }

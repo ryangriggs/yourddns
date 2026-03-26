@@ -274,6 +274,22 @@ module.exports = async function dashboardRoutes(fastify) {
     return reply.view('dashboard/setup-modal.njk', { record, fqdn, updateUrl, siteUrl });
   });
 
+  // GET /dashboard/records/:id/history — last 10 update log entries (JSON)
+  fastify.get('/dashboard/records/:id/history', async (req, reply) => {
+    const db = getDb();
+    const record = db.prepare('SELECT id FROM ddns_records WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
+    if (!record) return reply.code(404).send({ error: 'Not found' });
+
+    const rows = db.prepare(`
+      SELECT updated_at, new_ip, new_ip6, requester_ip, computer_name
+      FROM update_logs
+      WHERE record_id = ?
+      ORDER BY updated_at DESC
+      LIMIT 10
+    `).all(record.id);
+    return reply.send(rows);
+  });
+
   // GET /dashboard/profile
   fastify.get('/dashboard/profile', async (req, reply) => {
     const db = getDb();

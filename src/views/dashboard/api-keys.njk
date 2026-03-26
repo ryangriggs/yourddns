@@ -146,8 +146,16 @@
       <div class="api-endpoint">
         <div class="api-method get">GET</div>
         <div class="api-path">/api/update</div>
-        <p class="api-desc">Update IP for an existing record using its per-record key (existing API, unchanged).</p>
-        <pre class="code-block">curl "{{ siteUrl }}/api/update?key=yddns_...&subdomain=home.example.com"</pre>
+        <p class="api-desc">Update IP for an existing record using its per-record API key. Omit <code>ip</code>/<code>ip6</code> to auto-detect from the connecting address. Use <code>name</code> to tag the update with a device name visible in update history.</p>
+        <pre class="code-block">curl "{{ siteUrl }}/api/update?key=yddns_...&subdomain=home.example.com&name=MyPC"</pre>
+        <table class="table table-sm mt-2">
+          <tr><th>Parameter</th><th>Description</th></tr>
+          <tr><td class="mono">key</td><td>Per-record API key (required)</td></tr>
+          <tr><td class="mono">subdomain</td><td>Full hostname to update (required)</td></tr>
+          <tr><td class="mono">ip</td><td>IPv4 address; omit to auto-detect</td></tr>
+          <tr><td class="mono">ip6</td><td>IPv6 address; omit to auto-detect</td></tr>
+          <tr><td class="mono">name</td><td>Device/computer name for update history (optional, max 64 chars)</td></tr>
+        </table>
       </div>
 
     </div>

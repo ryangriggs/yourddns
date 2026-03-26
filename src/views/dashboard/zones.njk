@@ -87,8 +87,8 @@
     <form method="post" action="/dashboard/zones" class="modal-body">
       <div class="form-group">
         <label class="form-label">Domain</label>
-        <input type="text" name="domain" class="form-input" required placeholder="example.com or ddns.example.com"
-          autocomplete="off" autocapitalize="off">
+        <input type="text" name="domain" id="zonedomainInput" class="form-input" required placeholder="example.com or ddns.example.com"
+          autocomplete="off" autocapitalize="off" oninput="autoDetectZoneType(this.value)">
         <p class="form-hint">The domain or subdomain you want to delegate to this service.</p>
       </div>
       <div class="form-group">
@@ -117,4 +117,19 @@
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function autoDetectZoneType(value) {
+  var v = value.trim().replace(/\.$/, ''); // strip trailing dot
+  var labels = v.split('.').filter(function(l) { return l.length > 0; });
+  // 3+ labels = subdomain (e.g. ddns.example.com), 2 labels = full domain (e.g. example.com)
+  var isSub = labels.length >= 3;
+  var radios = document.querySelectorAll('input[name="zone_type"]');
+  radios.forEach(function(r) {
+    r.checked = (isSub ? r.value === 'subdomain' : r.value === 'full');
+  });
+}
+</script>
 {% endblock %}

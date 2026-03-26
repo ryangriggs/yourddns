@@ -82,6 +82,17 @@ async function initDb() {
   ensureSettings.run('backup_interval_hours',         '24',                                            'Auto-backup every X hours (0 = disabled)');
   ensureSettings.run('backup_retention_days',         '30',                                            'Delete backups older than X days (0 = keep forever)');
 
+  // update_logs — computer_name and new_ip6 columns
+  const updateLogCols = db.prepare('PRAGMA table_info(update_logs)').all().map(c => c.name);
+  if (!updateLogCols.includes('computer_name')) {
+    db.exec('ALTER TABLE update_logs ADD COLUMN computer_name TEXT');
+    console.log('[db] Migration: added computer_name to update_logs');
+  }
+  if (!updateLogCols.includes('new_ip6')) {
+    db.exec('ALTER TABLE update_logs ADD COLUMN new_ip6 TEXT');
+    console.log('[db] Migration: added new_ip6 to update_logs');
+  }
+
   // zone_api_keys — added when zone API was introduced
   const apiKeyTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='zone_api_keys'").get();
   if (!apiKeyTables) {

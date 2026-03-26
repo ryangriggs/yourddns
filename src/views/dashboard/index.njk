@@ -77,7 +77,11 @@
           </td>
           <td class="mono">{{ record.ttl }}s</td>
           <td>{{ record.hit_count }}</td>
-          <td class="text-muted">{{ record.last_update_received_at | date('relative') }}</td>
+          <td class="text-muted">
+            {% if record.last_update_received_at %}
+            <button class="link-btn" onclick="openHistory({{ record.id }})">{{ record.last_update_received_at | date('relative') }}</button>
+            {% else %}—{% endif %}
+          </td>
           <td class="text-muted">{{ record.created_at | date }}</td>
           <td>
             <span class="badge {% if record.is_enabled %}badge-green{% else %}badge-gray{% endif %}">
@@ -216,6 +220,21 @@
   </div>
 </div>
 
+<!-- Update History Modal -->
+<div class="modal-overlay" id="historyModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 class="modal-title">Update History</h2>
+      <button class="modal-close" onclick="closeModal('historyModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="historyContent">
+      <div class="loading-spin"></div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -338,6 +357,35 @@ function openSetup(id) {
   fetch('/dashboard/records/' + id + '/setup')
     .then(r => r.text())
     .then(html => { document.getElementById('setupContent').innerHTML = html; });
+}
+function openHistory(id) {
+  openModal('historyModal');
+  const el = document.getElementById('historyContent');
+  el.innerHTML = '<div class="loading-spin"></div>';
+  fetch('/dashboard/records/' + id + '/history')
+    .then(r => r.json())
+    .then(rows => {
+      if (!rows.length) {
+        el.innerHTML = '<p class="text-muted">No update history yet.</p>';
+        return;
+      }
+      let html = '<div class="table-card" style="margin:0;border:none;box-shadow:none"><table class="table"><thead><tr>'
+        + '<th>Timestamp</th><th>IPv4</th><th>IPv6</th><th>Source IP</th><th>Computer</th>'
+        + '</tr></thead><tbody>';
+      rows.forEach(r => {
+        const ts = r.updated_at ? new Date(r.updated_at + 'Z').toLocaleString() : '—';
+        html += '<tr>'
+          + '<td class="mono" style="font-size:0.82em;white-space:nowrap">' + ts + '</td>'
+          + '<td class="mono">' + (r.new_ip || '—') + '</td>'
+          + '<td class="mono" style="font-size:0.82em">' + (r.new_ip6 || '—') + '</td>'
+          + '<td class="mono">' + (r.requester_ip || '—') + '</td>'
+          + '<td>' + (r.computer_name || '—') + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div>';
+      el.innerHTML = html;
+    })
+    .catch(() => { el.innerHTML = '<p class="text-danger">Failed to load history.</p>'; });
 }
 function copyPat() {
   const code = document.getElementById('patCode').textContent;

@@ -7,7 +7,8 @@ const { generatePat, hashPat } = require('../services/pat');
 module.exports = async function apiRoutes(fastify) {
   // GET /api/update?key=...&subdomain=...&ip=...&ip6=...
   fastify.get('/api/update', async (req, reply) => {
-    const { key, subdomain, ip, ip6 } = req.query || {};
+    const { key, subdomain, ip, ip6, name } = req.query || {};
+    const computerName = name ? String(name).slice(0, 64).replace(/[^\w\-. ]/g, '') : null;
     const clientIp = req.ip;
     const db = getDb();
 
@@ -86,11 +87,10 @@ module.exports = async function apiRoutes(fastify) {
 
     db.prepare(`UPDATE ddns_records SET ${setClauses.join(', ')} WHERE id = ?`).run(...runParams);
 
-    const logIp = newIp || newIp6;
     db.prepare(`
-      INSERT INTO update_logs (record_id, requester_ip, user_agent, new_ip)
-      VALUES (?, ?, ?, ?)
-    `).run(record.id, clientIp, req.headers['user-agent'] || null, logIp);
+      INSERT INTO update_logs (record_id, requester_ip, user_agent, new_ip, new_ip6, computer_name)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(record.id, clientIp, req.headers['user-agent'] || null, newIp, newIp6, computerName);
 
     const changed = (newIp !== null && newIp !== record.ip_address) || (newIp6 !== null && newIp6 !== record.ip6_address);
     const responseIps = [newIp, newIp6].filter(Boolean).join(' ');

@@ -113,15 +113,16 @@ Optional parameters:
 | `ip` | Set IPv4 explicitly (default: auto-detect from connecting IP) |
 | `ip6` | Set IPv6 explicitly |
 | `subdomain` | Fully-qualified hostname to update |
+| `name` | Device/computer name logged with each update — visible in the dashboard update history (max 64 chars) |
 
 Responses: `good 1.2.3.4` (updated), `nochg 1.2.3.4` (no change), `badauth`, `badip`, `abuse`, `disabled`
 
 ### Example: cron-based update
 
 ```bash
-# Update IPv4 and IPv6 every 5 minutes
-*/5 * * * * curl -sf "https://yourddns.com/api/update?key=YOUR_PAT&subdomain=home.d.yourddns.com&ip=$(curl -4sf https://api4.ipify.org)" > /dev/null
-*/5 * * * * curl -sf "https://yourddns.com/api/update?key=YOUR_PAT&subdomain=home.d.yourddns.com&ip6=$(curl -6sf https://api6.ipify.org)" > /dev/null
+# Update IPv4 and IPv6 every 5 minutes, tagging with the machine hostname
+*/5 * * * * curl -s -4 "https://yourddns.com/api/update?key=YOUR_PAT&subdomain=home.d.yourddns.com&name=$(hostname)" > /dev/null
+*/5 * * * * curl -s -6 "https://yourddns.com/api/update?key=YOUR_PAT&subdomain=home.d.yourddns.com&name=$(hostname)" > /dev/null
 ```
 
 ## Default Tier Limits

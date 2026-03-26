@@ -239,6 +239,8 @@ a:hover { text-decoration: underline; }
   transition: background 0.1s, color 0.1s;
 }
 .icon-btn:hover { background: #f3f4f6; color: #374151; }
+.link-btn { background: none; border: none; padding: 0; color: #6366f1; cursor: pointer; font-size: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.link-btn:hover { color: #4f46e5; }
 
 /* ── Auth ────────────────────────────────────────────────────────────────── */
 .auth-card {

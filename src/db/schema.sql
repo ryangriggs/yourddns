@@ -135,6 +135,8 @@ CREATE TABLE IF NOT EXISTS update_logs (
   requester_ip TEXT,
   user_agent TEXT,
   new_ip TEXT,
+  new_ip6 TEXT,
+  computer_name TEXT,
   success INTEGER NOT NULL DEFAULT 1,
   error_message TEXT,
   FOREIGN KEY (record_id) REFERENCES ddns_records(id) ON DELETE CASCADE
