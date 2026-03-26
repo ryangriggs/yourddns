@@ -1,30 +1,30 @@
 {
-    email {$CADDY_EMAIL:admin@yourddns.com}
+	email {$CADDY_EMAIL:admin@yourddns.com}
 
-    on_demand_tls {
-        ask http://app:3000/internal/caddy-ask
-    }
+	on_demand_tls {
+		ask http://app:3000/internal/caddy-ask
+	}
 }
 
 # Main site
 {$SITE_DOMAIN:yourddns.com} {
-    reverse_proxy app:3000
+	reverse_proxy app:3000
 }
 
 # www → apex redirect
 www.{$SITE_DOMAIN:yourddns.com} {
-    redir https://{$SITE_DOMAIN:yourddns.com}{uri} permanent
+	redir https://{$SITE_DOMAIN:yourddns.com}{uri} permanent
 }
 
-# All other HTTPS domains: provision cert on demand, then redirect to main site
-:443 {
-    tls {
-        on_demand
-    }
-    redir https://{$SITE_DOMAIN:yourddns.com} permanent
+# All other HTTPS domains: get a cert on demand, then redirect to main site
+https:// {
+	tls {
+		on_demand
+	}
+	redir https://{$SITE_DOMAIN:yourddns.com} permanent
 }
 
 # All other HTTP domains: redirect to main site
-:80 {
-    redir https://{$SITE_DOMAIN:yourddns.com} permanent
+http:// {
+	redir https://{$SITE_DOMAIN:yourddns.com} permanent
 }
