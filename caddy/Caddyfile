@@ -16,15 +16,15 @@ www.{$SITE_DOMAIN:yourddns.com} {
     redir https://{$SITE_DOMAIN:yourddns.com}{uri} permanent
 }
 
-# Catch-all: on-demand TLS for validated custom user domains
+# All other HTTPS domains: provision cert on demand, then redirect to main site
 :443 {
     tls {
         on_demand
     }
-    reverse_proxy app:3000
+    redir https://{$SITE_DOMAIN:yourddns.com} permanent
 }
 
-# HTTP catch-all
+# All other HTTP domains: redirect to main site
 :80 {
-    reverse_proxy app:3000
+    redir https://{$SITE_DOMAIN:yourddns.com} permanent
 }

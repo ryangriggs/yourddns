@@ -110,32 +110,13 @@ async function build() {
     if (!domain) return reply.code(400).send('missing domain');
     const db = getDb();
     const zone = db.prepare(
-      "SELECT id FROM zones WHERE domain = ? AND user_id IS NOT NULL AND validated = 1"
+      "SELECT id FROM zones WHERE domain = ? AND validated = 1"
     ).get(domain);
     if (zone) return reply.code(200).send('ok');
     // Also allow the main site domain(s)
     const siteDomain = getSetting('site_domain') || process.env.SITE_DOMAIN || '';
     if (domain === siteDomain || domain === `www.${siteDomain}`) return reply.code(200).send('ok');
     return reply.code(403).send('domain not allowed');
-  });
-
-  // ── Custom zone domain redirect ────────────────────────────────────────────
-  // If a request arrives on a validated custom user domain (not a DDNS subdomain
-  // of it), redirect to the main site so the domain doesn't show a blank page.
-  fastify.addHook('preHandler', async (req, reply) => {
-    const db = getDb();
-    const host = req.hostname;
-    const siteDomain = getSetting('site_domain') || process.env.SITE_DOMAIN || '';
-    if (!host || host === siteDomain || host.endsWith(`.${siteDomain}`)) return;
-    // Check if the full hostname is a validated custom zone (apex only — subdomains
-    // are DDNS records and should resolve normally via DNS, not redirect)
-    const zone = db.prepare(
-      "SELECT id FROM zones WHERE domain = ? AND user_id IS NOT NULL AND validated = 1"
-    ).get(host);
-    if (zone) {
-      const siteUrl = getSetting('site_url') || `https://${siteDomain}`;
-      return reply.redirect(301, siteUrl);
-    }
   });
 
   // ── Routes ────────────────────────────────────────────────────────────────
