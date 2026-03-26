@@ -103,6 +103,7 @@ async function build() {
       appVersion: version,
       paypalDonationUrl: getSetting('paypal_donation_url') || '',
       githubSponsorsUrl: getSetting('github_sponsors_url') || '',
+      faviconVersion: getSetting('favicon_version') || '1',
     };
   });
 
@@ -126,7 +127,7 @@ async function build() {
   // ── Routes ────────────────────────────────────────────────────────────────
   fastify.get('/favicon.svg', async (req, reply) => {
     reply.header('Content-Type', 'image/svg+xml');
-    reply.header('Cache-Control', 'public, max-age=3600');
+    reply.header('Cache-Control', 'public, max-age=86400');
     const custom = getSetting('favicon_svg');
     if (custom) return reply.send(custom);
     const emoji = getSetting('favicon_emoji') || '🌐';

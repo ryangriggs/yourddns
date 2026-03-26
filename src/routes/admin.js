@@ -340,6 +340,7 @@ module.exports = async function adminRoutes(fastify) {
       }
 
       setSetting('favicon_svg', content);
+      setSetting('favicon_version', String(Date.now()));
       req.session.flash = { type: 'success', message: 'Favicon updated.' };
     } catch (err) {
       req.session.flash = { type: 'error', message: `Upload failed: ${err.message}` };
@@ -350,6 +351,7 @@ module.exports = async function adminRoutes(fastify) {
   // POST /admin/settings/favicon/clear — remove custom SVG
   fastify.post('/admin/settings/favicon/clear', async (req, reply) => {
     setSetting('favicon_svg', '');
+    setSetting('favicon_version', String(Date.now()));
     req.session.flash = { type: 'success', message: 'Custom favicon removed.' };
     return reply.redirect('/admin/settings#settings-site');
   });

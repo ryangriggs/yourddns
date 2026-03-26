@@ -8,6 +8,21 @@
 
   <div class="settings-layout">
 
+    <aside class="settings-sidenav">
+      <div class="settings-sidenav-inner">
+        <p class="settings-sidenav-title">Sections</p>
+        <nav class="settings-sidenav-nav" id="settingsSideNav">
+          <a href="#settings-site"      class="settings-sidenav-link active" data-target="settings-site">Site</a>
+          <a href="#settings-auth"      class="settings-sidenav-link" data-target="settings-auth">Authentication</a>
+          <a href="#settings-dns"       class="settings-sidenav-link" data-target="settings-dns">DNS</a>
+          <a href="#settings-donations" class="settings-sidenav-link" data-target="settings-donations">Donations</a>
+          <a href="#settings-backups"   class="settings-sidenav-link" data-target="settings-backups">Backups</a>
+          <a href="#settings-billing"   class="settings-sidenav-link" data-target="settings-billing">Billing</a>
+        </nav>
+        <button type="submit" form="settingsForm" class="btn btn-primary" style="width:100%;margin-top:1rem">Save All</button>
+      </div>
+    </aside>
+
     <form id="settingsForm" method="post" action="/admin/settings" class="settings-main">
 
       <div class="card mb-4" id="settings-site">
@@ -42,7 +57,7 @@
           <div class="form-group">
             <label class="form-label">Favicon</label>
             <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-              <img src="/favicon.svg" alt="Current favicon" style="width:40px;height:40px;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#fff">
+              <img src="/favicon.svg?v={{ faviconVersion }}" alt="Current favicon" style="width:40px;height:40px;border:1px solid #e5e7eb;border-radius:6px;padding:4px;background:#fff">
               <div>
                 {% if settings.favicon_svg.value %}
                 <p style="font-size:0.875rem;margin:0 0 6px">Custom SVG active.</p>
@@ -190,21 +205,6 @@
 
       <button type="submit" class="btn btn-primary mb-6">Save Settings</button>
     </form>
-
-    <aside class="settings-sidenav">
-      <div class="settings-sidenav-inner">
-        <p class="settings-sidenav-title">Sections</p>
-        <nav class="settings-sidenav-nav" id="settingsSideNav">
-          <a href="#settings-site"      class="settings-sidenav-link active" data-target="settings-site">Site</a>
-          <a href="#settings-auth"      class="settings-sidenav-link" data-target="settings-auth">Authentication</a>
-          <a href="#settings-dns"       class="settings-sidenav-link" data-target="settings-dns">DNS</a>
-          <a href="#settings-donations" class="settings-sidenav-link" data-target="settings-donations">Donations</a>
-          <a href="#settings-backups"   class="settings-sidenav-link" data-target="settings-backups">Backups</a>
-          <a href="#settings-billing"   class="settings-sidenav-link" data-target="settings-billing">Billing</a>
-        </nav>
-        <button type="submit" form="settingsForm" class="btn btn-primary" style="width:100%;margin-top:1rem">Save All</button>
-      </div>
-    </aside>
 
   </div>
 </div>

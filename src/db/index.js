@@ -150,6 +150,7 @@ async function seedDefaultData() {
     ['landing_title',               'Dynamic DNS for Everyone', 'Hero headline on the landing page'],
     ['favicon_emoji',               '🌐', 'Emoji fallback favicon when no SVG is uploaded'],
     ['favicon_svg',                 '',   'Custom SVG favicon content (uploaded file)'],
+    ['favicon_version',             '1',  'Incremented on each favicon change for cache busting'],
     ['news_content',                '', 'News/announcement block shown on landing page'],
     ['global_min_ttl',              '1', 'Global minimum TTL (seconds) — floor for all tiers'],
     ['ns_primary',   process.env.NS_PRIMARY || 'ns1.yourddns.com',   'Primary nameserver hostname'],
