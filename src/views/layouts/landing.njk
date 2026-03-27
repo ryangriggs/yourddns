@@ -16,12 +16,28 @@
       <a href="/" class="logo">{{ siteName }}</a>
       <div class="landing-header-actions">
         {% if user %}
-        <span class="text-muted" style="font-size:0.875rem">{{ user.email }}</span>
-        <a href="/dashboard" class="btn btn-primary btn-sm">Dashboard</a>
+        <div class="user-menu" id="userMenuBtn">
+          <span class="user-email">{{ user.email }}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          <div class="user-dropdown" id="userDropdown">
+            <a href="/dashboard" class="dropdown-item">Dashboard</a>
+            <div class="dropdown-divider"></div>
+            <a href="/dashboard/profile" class="dropdown-item">Profile</a>
+            <a href="/dashboard/api-keys" class="dropdown-item">API Keys</a>
+            <a href="/dashboard/api-keys#api-docs" class="dropdown-item">API Documentation</a>
+            {% if user.is_admin %}
+            <a href="/admin" class="dropdown-item">Admin Panel</a>
+            {% endif %}
+            <div class="dropdown-divider"></div>
+            <form method="post" action="/auth/logout">
+              <button type="submit" class="dropdown-item w-full text-left">Sign out</button>
+            </form>
+          </div>
+        </div>
         {% else %}
         <a href="/auth/login" class="btn btn-outline btn-sm">Sign In</a>
         {% if registrationEnabled %}
-        <a href="/auth/register" class="btn btn-primary btn-sm">Create Account</a>
+        <a href="/auth/register" class="btn btn-primary btn-sm">Sign Up</a>
         {% endif %}
         {% endif %}
       </div>
@@ -39,5 +55,6 @@
       v{{ appVersion }}
     </div>
   </footer>
+  <script src="/public/js/main.js"></script>
 </body>
 </html>
