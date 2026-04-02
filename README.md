@@ -47,6 +47,10 @@ This app runs its own authoritative DNS server. You configure NS records at your
 
 For full-zone delegation, Admin → Domains lets you manage static DNS records (A, MX, CNAME, TXT) alongside DDNS records.
 
+### Known DNS limitations
+
+**UDP truncation / EDNS(0) not implemented.** DNS responses over ~512 bytes are sent as-is over UDP without setting the TC (truncated) bit. Clients therefore do not know to retry over TCP. In practice this only affects zones with many MX records or long TXT records — typical DDNS A/AAAA responses are well under 100 bytes. TCP is enabled and works correctly; clients that query over TCP (e.g. `dig +tcp`) receive full responses regardless of size. EDNS(0) payload-size negotiation (RFC 6891) is also not implemented — the underlying `dns2` library does not expose wire-encoding size before sending, and does not parse OPT records from requests.
+
 ## Quick Start (Docker)
 
 ```bash
