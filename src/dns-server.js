@@ -201,11 +201,13 @@ async function handleQuery(request, send, rinfo) {
           // CNAME takes precedence over all other types (RFC 1034 §3.6.2) — must be returned
           // regardless of the query type. Check exact name first, then wildcard fallback.
           // Apex excluded: CNAME cannot coexist with SOA/NS (RFC 1034 §3.6.2).
-          // Wildcard excluded for multi-label subdomains: RFC 4592 §2.1 — * matches exactly
-          // one label, so *.example.com does NOT match foo.bar.example.com.
-          const namesToCheck = subdomain !== '@'
-            ? (subdomain.includes('.') ? [subdomain] : [subdomain, '*'])
-            : [];
+          // Wildcard: RFC 4592 §2.1 — strip the first label and prepend *, so x.test tries
+          // *.test (not *). This means * matches x but not x.test; *.test matches x.test
+          // but not x.y.test. Each subdomain depth has its own wildcard.
+          const wildcardName = subdomain.includes('.')
+            ? '*.' + subdomain.slice(subdomain.indexOf('.') + 1)
+            : '*';
+          const namesToCheck = subdomain !== '@' ? [subdomain, wildcardName] : [];
           let cnameDone = false;
           for (const checkName of namesToCheck) {
             const cnameRecord = db.prepare(`
@@ -233,13 +235,15 @@ async function handleQuery(request, send, rinfo) {
               ${typeFilter ? "AND type = ?" : ""}
             `).all(...(typeFilter ? [matchedZone.id, subdomain, typeFilter] : [matchedZone.id, subdomain]));
 
-            // Wildcard fallback — only for single-label subdomains (RFC 4592 §2.1)
-            if (staticRecords.length === 0 && subdomain !== '@' && !subdomain.includes('.')) {
+            // Wildcard fallback (RFC 4592 §2.1): strip the first label and prepend *.
+            // x      → *        x.test  → *.test        x.y.test → *.y.test
+            // This ensures * only matches one level, while deeper wildcards work correctly.
+            if (staticRecords.length === 0 && subdomain !== '@') {
               staticRecords = db.prepare(`
                 SELECT * FROM zone_static_records
-                WHERE zone_id = ? AND name = '*'
+                WHERE zone_id = ? AND name = ?
                 ${typeFilter ? "AND type = ?" : ""}
-              `).all(...(typeFilter ? [matchedZone.id, typeFilter] : [matchedZone.id]));
+              `).all(...(typeFilter ? [matchedZone.id, wildcardName, typeFilter] : [matchedZone.id, wildcardName]));
             }
 
             const mxExchanges = new Set();
