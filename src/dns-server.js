@@ -198,16 +198,31 @@ async function handleQuery(request, send, rinfo) {
           // lookups entirely. For ANY, typeFilter is undefined but we still want all records.
           const doStaticLookup = typeFilter !== undefined || qtype === Packet.TYPE.ANY;
 
+          // Determine up-front whether this exact name has any records at all.
+          // Used for two purposes:
+          //   1. Wildcard suppression — RFC 4592 §4.3.3: if a name has ANY explicit record
+          //      (regardless of type), wildcards must not apply to it.
+          //   2. NXDOMAIN vs NODATA distinction at the bottom of this question's processing.
+          const exactNameExists = subdomain === '@' || !!db.prepare(`
+            SELECT 1 FROM zone_static_records WHERE zone_id = ? AND LOWER(name) = LOWER(?)
+            UNION ALL
+            SELECT 1 FROM ddns_records WHERE zone_id = ? AND LOWER(subdomain) = LOWER(?) AND is_enabled = 1
+            LIMIT 1
+          `).get(matchedZone.id, subdomain, matchedZone.id, subdomain);
+
           // CNAME takes precedence over all other types (RFC 1034 §3.6.2) — must be returned
           // regardless of the query type. Check exact name first, then wildcard fallback.
           // Apex excluded: CNAME cannot coexist with SOA/NS (RFC 1034 §3.6.2).
           // Wildcard: RFC 4592 §2.1 — strip the first label and prepend *, so x.test tries
           // *.test (not *). This means * matches x but not x.test; *.test matches x.test
           // but not x.y.test. Each subdomain depth has its own wildcard.
+          // Wildcard suppressed when exact name has any records (RFC 4592 §4.3.3).
           const wildcardName = subdomain.includes('.')
             ? '*.' + subdomain.slice(subdomain.indexOf('.') + 1)
             : '*';
-          const namesToCheck = subdomain !== '@' ? [subdomain, wildcardName] : [];
+          const namesToCheck = subdomain !== '@'
+            ? (exactNameExists ? [subdomain] : [subdomain, wildcardName])
+            : [];
           let cnameDone = false;
           for (const checkName of namesToCheck) {
             const cnameRecord = db.prepare(`
@@ -235,10 +250,10 @@ async function handleQuery(request, send, rinfo) {
               ${typeFilter ? "AND type = ?" : ""}
             `).all(...(typeFilter ? [matchedZone.id, subdomain, typeFilter] : [matchedZone.id, subdomain]));
 
-            // Wildcard fallback (RFC 4592 §2.1): strip the first label and prepend *.
+            // Wildcard fallback (RFC 4592 §2.1 + §4.3.3): strip the first label and prepend *.
             // x      → *        x.test  → *.test        x.y.test → *.y.test
-            // This ensures * only matches one level, while deeper wildcards work correctly.
-            if (staticRecords.length === 0 && subdomain !== '@') {
+            // Suppressed when the exact name already has records of any type (§4.3.3).
+            if (staticRecords.length === 0 && subdomain !== '@' && !exactNameExists) {
               staticRecords = db.prepare(`
                 SELECT * FROM zone_static_records
                 WHERE zone_id = ? AND name = ?
@@ -312,16 +327,8 @@ async function handleQuery(request, send, rinfo) {
 
         // Negative response handling (RFC 2308) — fires when this question produced no answers
         if (response.answers.length === answerCountBefore) {
-          // Distinguish NXDOMAIN (name doesn't exist) from NODATA (name exists, wrong type).
-          // The apex always exists; for subdomains, check both record tables.
-          const nameExists = subdomain === '@' || !!db.prepare(`
-            SELECT 1 FROM zone_static_records WHERE zone_id = ? AND LOWER(name) = LOWER(?)
-            UNION ALL
-            SELECT 1 FROM ddns_records WHERE zone_id = ? AND LOWER(subdomain) = LOWER(?) AND is_enabled = 1
-            LIMIT 1
-          `).get(matchedZone.id, subdomain, matchedZone.id, subdomain);
-
-          if (!nameExists) response.header.rcode = RCODE.NXDOMAIN;
+          // exactNameExists was computed above; reuse it here to avoid a second DB query.
+          if (!exactNameExists) response.header.rcode = RCODE.NXDOMAIN;
 
           // SOA in authority for all negative responses (NXDOMAIN and NODATA)
           const soa = buildSoa(matchedZone);

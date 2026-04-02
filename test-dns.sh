@@ -292,7 +292,10 @@ expect_authority_soa \
 # ─────────────────────────────────────────────────────────────────────────────
 section "7  NXDOMAIN — nonexistent names"
 
-NONAME="nxtest-doesnotexist.$DOMAIN"
+# Use a two-label subdomain (nxtest.nosuchparent) so no wildcard can match it.
+# The * wildcard only matches single-label names; *.sub only matches x.sub.
+# nxtest.nosuchparent has no wildcard (nosuchparent != sub) and no explicit record.
+NONAME="nxtest.nosuchparent.$DOMAIN"
 
 expect_rcode         "NXDOMAIN  A query"                NXDOMAIN A     "$NONAME"
 expect_authority_soa "NXDOMAIN  SOA in authority (A)"            A     "$NONAME"
@@ -338,10 +341,11 @@ expect_answer \
   "Wildcard *  another123.$DOMAIN → $A_WILD" \
   "$A_WILD" A "another123.$DOMAIN"
 
-# * must NOT match multi-label subdomain (RFC 4592 §2.1 — * matches exactly one label)
+# * must NOT match multi-label subdomain (RFC 4592 §2.1 — * matches exactly one label).
+# Use a suffix that has no *.suffix wildcard record (nosuchparent != sub).
 expect_rcode \
-  "Wildcard *  does NOT match x.y.$DOMAIN (two labels → NXDOMAIN)" \
-  NXDOMAIN A "xctest.yctest.$DOMAIN"
+  "Wildcard *  does NOT match x.nosuchparent.$DOMAIN (two labels → NXDOMAIN)" \
+  NXDOMAIN A "xctest.nosuchparent.$DOMAIN"
 
 # Explicit record takes precedence over wildcard
 expect_answer \
