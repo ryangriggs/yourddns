@@ -5,6 +5,7 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const { getDb, getSetting, getAllSettings, setSetting, withTransaction, restoreFromFile } = require('../db/index');
 const { createBackup, pruneBackups, listBackups, BACKUP_DIR } = require('../services/backup');
+const { validateStaticRecord } = require('./zones');
 
 function flash(req) {
   const f = req.session.flash;
@@ -224,6 +225,11 @@ module.exports = async function adminRoutes(fastify) {
     const { name, type, value, ttl, priority } = req.body || {};
     if (!name || !type || !value) {
       req.session.flash = { type: 'error', message: 'Name, type, and value are required.' };
+      return reply.redirect('/admin/domains');
+    }
+    const validationError = validateStaticRecord(name, type.toUpperCase(), value, priority);
+    if (validationError) {
+      req.session.flash = { type: 'error', message: validationError };
       return reply.redirect('/admin/domains');
     }
     db.prepare('INSERT INTO zone_static_records (zone_id, name, type, value, ttl, priority) VALUES (?, ?, ?, ?, ?, ?)').run(req.params.id, name, type.toUpperCase(), value, parseInt(ttl || 300, 10), priority || null);

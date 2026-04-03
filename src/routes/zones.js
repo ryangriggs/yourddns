@@ -45,6 +45,64 @@ function isValidDomain(domain) {
   return parts.every(p => p.length > 0 && p.length <= 63 && labelRe.test(p));
 }
 
+// Validate a static DNS record before insert. Returns null on success, error string on failure.
+function validateStaticRecord(name, type, value, priority) {
+  // Name validation
+  const trimmedName = (name || '').trim();
+  if (!trimmedName) return 'Name is required.';
+  if (trimmedName.endsWith('.')) return 'Name must not end with a dot. Enter a relative label (e.g. "www" or "@"), not a fully-qualified name.';
+
+  const isApex = trimmedName === '@';
+
+  // Validate each label of the name (allow wildcard '*' as first label)
+  if (!isApex) {
+    const labelRe = /^[a-z0-9*]([a-z0-9-]*[a-z0-9])?$|^[a-z0-9*]$/i;
+    const labels = trimmedName.split('.');
+    for (const label of labels) {
+      if (label === '*') continue; // wildcard label
+      if (label.length === 0 || label.length > 63 || !labelRe.test(label)) {
+        return `Invalid name label: "${label}". Use alphanumeric characters and hyphens only.`;
+      }
+    }
+  }
+
+  const trimmedValue = (value || '').trim();
+  if (!trimmedValue) return 'Value is required.';
+
+  const isIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(trimmedValue) &&
+    trimmedValue.split('.').every(n => parseInt(n, 10) <= 255);
+  const isIPv6 = /^[0-9a-f:]+$/i.test(trimmedValue) && trimmedValue.includes(':');
+  const isHostname = (h) => {
+    const clean = h.replace(/\.$/, '');
+    if (!clean) return false;
+    const labelRe = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$|^[a-z0-9]$/i;
+    return clean.split('.').every(l => l.length > 0 && l.length <= 63 && labelRe.test(l));
+  };
+
+  if (type === 'A') {
+    if (!isIPv4) return 'A record value must be a valid IPv4 address (e.g. 1.2.3.4).';
+  } else if (type === 'AAAA') {
+    if (!isIPv6) return 'AAAA record value must be a valid IPv6 address.';
+  } else if (type === 'CNAME') {
+    if (isApex) return 'CNAME records cannot be set at the zone apex (@).';
+    if (isIPv4 || isIPv6) return 'CNAME record value must be a hostname, not an IP address.';
+    if (!isHostname(trimmedValue)) return 'CNAME record value must be a valid hostname (e.g. target.example.com).';
+  } else if (type === 'MX') {
+    if (isIPv4 || isIPv6) return 'MX record value must be a hostname (mail server name), not an IP address.';
+    if (!isHostname(trimmedValue)) return 'MX record value must be a valid hostname (e.g. mail.example.com).';
+    const prio = parseInt(priority, 10);
+    if (priority !== undefined && priority !== null && priority !== '' && (isNaN(prio) || prio < 0 || prio > 65535)) {
+      return 'MX priority must be a number between 0 and 65535.';
+    }
+  } else if (type === 'TXT') {
+    if (trimmedValue.length > 65535) return 'TXT record value is too long.';
+  } else {
+    return `Unsupported record type: ${type}.`;
+  }
+
+  return null; // valid
+}
+
 module.exports = async function zonesRoutes(fastify) {
   fastify.addHook('preHandler', fastify.requireAuth);
 
@@ -239,6 +297,12 @@ module.exports = async function zonesRoutes(fastify) {
       return reply.redirect(`/dashboard/zones/${zone.id}`);
     }
 
+    const validationError = validateStaticRecord(name, type, value, priority);
+    if (validationError) {
+      req.session.flash = { type: 'error', message: validationError };
+      return reply.redirect(`/dashboard/zones/${zone.id}`);
+    }
+
     db.prepare('INSERT INTO zone_static_records (zone_id, name, type, value, ttl, priority) VALUES (?, ?, ?, ?, ?, ?)').run(
       zone.id, name.trim(), type, value.trim(), parseInt(ttl || 300, 10), priority ? parseInt(priority, 10) : null
     );
@@ -258,3 +322,5 @@ module.exports = async function zonesRoutes(fastify) {
     return reply.redirect(`/dashboard/zones/${zone.id}`);
   });
 };
+
+module.exports.validateStaticRecord = validateStaticRecord;

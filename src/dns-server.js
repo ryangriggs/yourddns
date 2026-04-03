@@ -149,6 +149,10 @@ async function handleQuery(request, send, rinfo) {
 
         // Track answer count before this question so negative-response logic is per-question
         const answerCountBefore = response.answers.length;
+        // Hoisted here so the negative-response block below (outside the subdomain !== null block)
+        // can access it without a second DB query. Default true so apex-only queries (SOA/NS)
+        // that skip the subdomain block are treated as NODATA rather than NXDOMAIN.
+        let exactNameExists = true;
 
         // SOA queries — only at the zone apex (SOA is an apex record, not a per-name record)
         if (subdomain === '@' && (qtype === Packet.TYPE.SOA || qtype === Packet.TYPE.ANY)) {
@@ -203,7 +207,7 @@ async function handleQuery(request, send, rinfo) {
           //   1. Wildcard suppression — RFC 4592 §4.3.3: if a name has ANY explicit record
           //      (regardless of type), wildcards must not apply to it.
           //   2. NXDOMAIN vs NODATA distinction at the bottom of this question's processing.
-          const exactNameExists = subdomain === '@' || !!db.prepare(`
+          exactNameExists = subdomain === '@' || !!db.prepare(`
             SELECT 1 FROM zone_static_records WHERE zone_id = ? AND LOWER(name) = LOWER(?)
             UNION ALL
             SELECT 1 FROM ddns_records WHERE zone_id = ? AND LOWER(subdomain) = LOWER(?) AND is_enabled = 1
@@ -349,7 +353,7 @@ async function handleQuery(request, send, rinfo) {
       }
     }
   } catch (err) {
-    console.error('[dns] unhandled error:', err.message);
+    console.error('[dns] unhandled error:', err.stack || err.message);
     response.header.rcode = RCODE.SERVFAIL;
     response.answers = [];
     response.authorities = [];
