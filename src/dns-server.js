@@ -207,16 +207,12 @@ async function handleQuery(request, send, rinfo) {
           //   1. Wildcard suppression — RFC 4592 §4.3.3: if a name has ANY explicit record
           //      (regardless of type), wildcards must not apply to it.
           //   2. NXDOMAIN vs NODATA distinction at the bottom of this question's processing.
-          const _exactRow = subdomain === '@' ? true : db.prepare(`
+          exactNameExists = subdomain === '@' || !!db.prepare(`
             SELECT 1 FROM zone_static_records WHERE zone_id = ? AND LOWER(name) = LOWER(?)
             UNION ALL
             SELECT 1 FROM ddns_records WHERE zone_id = ? AND LOWER(subdomain) = LOWER(?) AND is_enabled = 1
             LIMIT 1
           `).get(matchedZone.id, subdomain, matchedZone.id, subdomain);
-          exactNameExists = subdomain === '@' || !!_exactRow;
-          if (process.env.DNS_DEBUG) {
-            console.log(`[dns-debug] qname=${qname} qtype=${qtype} zone=${matchedZone.domain} subdomain=${subdomain} exactNameExists=${exactNameExists} wildcardName=${wildcardName}`);
-          }
 
           // CNAME takes precedence over all other types (RFC 1034 §3.6.2) — must be returned
           // regardless of the query type. Check exact name first, then wildcard fallback.
@@ -334,10 +330,6 @@ async function handleQuery(request, send, rinfo) {
         }
 
         // Negative response handling (RFC 2308) — fires when this question produced no answers
-        if (process.env.DNS_DEBUG) {
-          const added = response.answers.slice(answerCountBefore);
-          console.log(`[dns-debug] qname=${qname} answers_added=${added.length} rcode_before=${response.header.rcode} exactNameExists=${exactNameExists}`, added.map(a => `${a.type}:${a.address || a.domain || a.data || ''}`));
-        }
         if (response.answers.length === answerCountBefore) {
           // exactNameExists was computed above; reuse it here to avoid a second DB query.
           if (!exactNameExists) response.header.rcode = RCODE.NXDOMAIN;
