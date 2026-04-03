@@ -5,6 +5,21 @@ const { Packet } = dns2;
 
 // dns2 does not export RCODE constants — use raw values
 const RCODE = { NOERROR: 0, FORMERR: 1, SERVFAIL: 2, NXDOMAIN: 3, NOTIMP: 4, REFUSED: 5 };
+// BADVERS (16) cannot fit in the 4-bit header RCODE; it is encoded via extended RCODE
+// in the OPT record TTL field (upper 8 bits = 1). See RFC 6891 §6.1.3 and buildBadvers().
+
+// EDNS(0) — RFC 6891
+// OPT record type value (decimal 41)
+const EDNS_TYPE = Packet.TYPE.EDNS; // 0x29
+// Maximum UDP payload size we advertise in our OPT record.
+// 4096 is the conventional value used by BIND, Unbound, etc.
+const EDNS_ADVERTISED_UDP = 4096;
+// RFC 1035 §4.2.1 hard limit for clients that send no EDNS OPT record.
+const LEGACY_UDP_MAX = 512;
+
+// IXFR (RFC 1995) is not defined by dns2.
+const IXFR_TYPE = 251;
+
 const { getDb } = require('./db/index');
 
 let server;
@@ -38,6 +53,13 @@ function incrementHit(db, recordId, clientIp, qtype) {
   } catch (_) { /* hit_count column may not exist on old schema */ }
 }
 
+// Build an OPT record for BADVERS (RCODE 16, RFC 6891 §6.1.3).
+// RCODE 16 doesn't fit in the 4-bit DNS header rcode field.
+// Encoding: header.rcode = 0 (lower 4 bits of 16), OPT TTL upper 8 bits = 1.
+function buildBadversOpt() {
+  return { name: '', type: EDNS_TYPE, class: EDNS_ADVERTISED_UDP, ttl: 0x01000000, rdata: [] };
+}
+
 function isBlocked(db, ip) {
   if (!ip) return false;
   return !!db.prepare('SELECT id FROM blocked_ips WHERE ip_address = ?').get(ip);
@@ -59,6 +81,74 @@ function buildSoa(zone) {
 
 // Return A/AAAA records for a hostname if it falls within any zone we serve.
 // Used to populate the additional section for NS glue and MX exchange hints.
+
+// ── EDNS(0) and UDP truncation (RFC 6891, RFC 1035 §4.2.1) ───────────────────
+//
+// Called after the response is fully built, immediately before send().
+// For TCP (rinfo is a net.Socket — has a .write() method) there is no size
+// constraint; we return immediately.  For UDP we:
+//   1. Read the client's EDNS OPT record (if any) to learn its announced
+//      maximum UDP payload size.
+//   2. Add our own OPT record to the response additionals advertising
+//      EDNS_ADVERTISED_UDP bytes (RFC 6891 §7 — required when client sends OPT).
+//   3. If the encoded response already fits, we're done.
+//   4. Otherwise trim one record at a time from the end of each section
+//      (additionals → authorities → answers), re-encoding after every removal,
+//      until the response fits.  The OPT record in additionals is never removed.
+//   5. Set TC=1 if any record was removed.
+//
+function finalizeUdpResponseFor(request, response, isUdp) {
+  if (!isUdp) return; // TCP has no size constraint
+
+  // ── Step 1: read client EDNS OPT ─────────────────────────────────────────
+  const reqOpt = (request.additionals || []).find(r => r.type === EDNS_TYPE);
+  // The OPT CLASS field carries the client's max UDP payload size (RFC 6891 §6.1.2).
+  // Clamp to at least 512 (malformed OPT with class=0 should still behave sane).
+  const clientUdpMax = reqOpt ? Math.max(reqOpt.class || 0, LEGACY_UDP_MAX) : LEGACY_UDP_MAX;
+  const limit = Math.min(clientUdpMax, EDNS_ADVERTISED_UDP);
+
+  // ── Step 2: add OPT to our response (RFC 6891 §7) ────────────────────────
+  // Only when the client sent an OPT — legacy clients that sent no OPT must not
+  // receive one in the response (RFC 6891 §7: "SHOULD add ... if and only if ...").
+  if (reqOpt) {
+    response.additionals.push({
+      name  : '',              // OPT owner name is always root (empty)
+      type  : EDNS_TYPE,       // 41
+      class : EDNS_ADVERTISED_UDP, // our max UDP payload size
+      ttl   : 0,               // extended RCODE (0) and flags (0) — DNSSEC DO=0
+      rdata : [],              // no EDNS options in this response
+    });
+  }
+
+  // ── Step 3: check if it already fits ─────────────────────────────────────
+  if (response.toBuffer().length <= limit) return;
+
+  // ── Step 4: byte-accurate truncation ─────────────────────────────────────
+  // Remove one record at a time from the end, re-check after each removal.
+  // OPT in additionals is never removed (it must accompany every EDNS response).
+  // Order: additionals (non-OPT) → authorities → answers.
+  const sections = ['additionals', 'authorities', 'answers'];
+
+  for (const section of sections) {
+    let i = response[section].length - 1;
+    while (i >= 0) {
+      // Never remove the OPT record we just added to additionals.
+      if (response[section][i].type === EDNS_TYPE) { i--; continue; }
+      response[section].splice(i, 1);
+      if (response.toBuffer().length <= limit) {
+        response.header.tc = 1;
+        return;
+      }
+      i--;
+    }
+  }
+
+  // ── Step 5: couldn't fit even with empty sections — set TC and send bare ─
+  // This is theoretically possible only with a pathologically large single
+  // record (e.g. a 4000-byte TXT) sent to a non-EDNS legacy client.
+  response.header.tc = 1;
+}
+
 function lookupAdditional(db, zones, hostname) {
   const h = hostname.toLowerCase().replace(/\.$/, '');
   for (const zone of zones) {
@@ -96,9 +186,32 @@ async function handleQuery(request, send, rinfo) {
   response.header.ra = 0; // authoritative-only — we do not support recursion
   const db = getDb();
   const clientIp = getClientIp(rinfo);
+  // net.Socket (TCP) has a .write() method; plain UDP rinfo objects do not.
+  const isUdp = !(rinfo && typeof rinfo.write === 'function');
 
   try {
-    if (clientIp && isBlocked(db, clientIp)) {
+    // Silently drop DNS response messages — RFC 1035 §4.1.1 (QR=1 means response, not query)
+    if (request.header.qr === 1) { return; }
+
+    // EDNS(0) validation — RFC 6891
+    const ednsOpts = (request.additionals || []).filter(r => r.type === EDNS_TYPE);
+    if (ednsOpts.length > 1) {
+      // RFC 6891 §6.1.1: at most one OPT record per message
+      response.header.rcode = RCODE.FORMERR;
+    } else if (ednsOpts.length === 1) {
+      const ednsVersion = (ednsOpts[0].ttl >>> 16) & 0xFF;
+      if (ednsVersion !== 0) {
+        // RFC 6891 §6.1.3: unsupported EDNS version → BADVERS (RCODE 16)
+        response.header.rcode = 0; // lower 4 bits of RCODE 16
+        response.additionals.push(buildBadversOpt());
+        send(response);
+        return; // bypass normal zone processing
+      }
+    }
+
+    if (response.header.rcode !== RCODE.NOERROR) {
+      // Already set to FORMERR above — fall through to send
+    } else if (clientIp && isBlocked(db, clientIp)) {
       response.header.rcode = RCODE.REFUSED;
     } else if (request.header.opcode !== 0) {
       // Only handle standard QUERY (opcode 0); all others are not implemented (RFC 1035 §4.1.1)
@@ -116,6 +229,12 @@ async function handleQuery(request, send, rinfo) {
         // We only serve class IN; anything else (CHAOS, HESIOD, etc.) is not implemented
         if (question.class !== Packet.CLASS.IN) {
           if (response.header.rcode === RCODE.NOERROR) response.header.rcode = RCODE.NOTIMP;
+          continue;
+        }
+
+        // AXFR and IXFR are zone transfer requests — refuse them (RFC 5936 §2.2, RFC 1995)
+        if (qtype === Packet.TYPE.AXFR || qtype === IXFR_TYPE) {
+          response.header.rcode = RCODE.REFUSED;
           continue;
         }
 
@@ -260,7 +379,7 @@ async function handleQuery(request, send, rinfo) {
             if (staticRecords.length === 0 && subdomain !== '@' && !exactNameExists) {
               staticRecords = db.prepare(`
                 SELECT * FROM zone_static_records
-                WHERE zone_id = ? AND name = ?
+                WHERE zone_id = ? AND LOWER(name) = LOWER(?)
                 ${typeFilter ? "AND type = ?" : ""}
               `).all(...(typeFilter ? [matchedZone.id, wildcardName, typeFilter] : [matchedZone.id, wildcardName]));
             }
@@ -296,7 +415,7 @@ async function handleQuery(request, send, rinfo) {
                   incrementHit(db, record.id, clientIp, 'A');
                 }
                 response.answers.push({
-                  name: qname,
+                  name: nameToLookup,
                   type: Packet.TYPE.A,
                   class: Packet.CLASS.IN,
                   ttl: record.ttl,
@@ -318,7 +437,7 @@ async function handleQuery(request, send, rinfo) {
                   incrementHit(db, record.id, clientIp, 'AAAA');
                 }
                 response.answers.push({
-                  name: qname,
+                  name: nameToLookup,
                   type: Packet.TYPE.AAAA,
                   class: Packet.CLASS.IN,
                   ttl: record.ttl,
@@ -340,7 +459,7 @@ async function handleQuery(request, send, rinfo) {
             name: matchedZone.domain,
             type: Packet.TYPE.SOA,
             class: Packet.CLASS.IN,
-            ttl: 300,
+            ttl: soa.minimum, // RFC 2308 §3: negative cache TTL is capped by SOA minimum
             primary: soa.mname,
             admin: soa.rname,
             serial: soa.serial,
@@ -355,18 +474,17 @@ async function handleQuery(request, send, rinfo) {
   } catch (err) {
     console.error('[dns] unhandled error:', err.stack || err.message);
     response.header.rcode = RCODE.SERVFAIL;
+    response.header.aa = 0; // RFC 2181 §5.2: SERVFAIL is not authoritative
     response.answers = [];
     response.authorities = [];
     response.additionals = [];
   }
 
-  // KNOWN LIMITATION — UDP truncation (TC bit) and EDNS(0) are not implemented.
-  // dns2 does not expose the encoded wire size before sending, and does not parse
-  // OPT records from requests. Responses that exceed 512 bytes over UDP are sent
-  // as-is without setting TC=1; clients will not know to retry over TCP.
-  // In practice this only affects zones with many MX records or long TXT records.
-  // TCP is enabled, so manual retries over TCP work correctly.
-  // See: RFC 1035 §4.2.1 (truncation), RFC 6891 (EDNS).
+  // Apply EDNS(0) OPT response record and UDP truncation (RFC 6891, RFC 1035 §4.2.1).
+  // For TCP responses this is a no-op.  For UDP it reads the client OPT (if any),
+  // adds our OPT advertising EDNS_ADVERTISED_UDP bytes, then trims and sets TC=1
+  // if the encoded response exceeds the negotiated limit.
+  finalizeUdpResponseFor(request, response, isUdp);
   send(response);
 }
 

@@ -49,7 +49,9 @@ For full-zone delegation, Admin → Domains lets you manage static DNS records (
 
 ### Known DNS limitations
 
-**UDP truncation / EDNS(0) not implemented.** DNS responses over ~512 bytes are sent as-is over UDP without setting the TC (truncated) bit. Clients therefore do not know to retry over TCP. In practice this only affects zones with many MX records or long TXT records — typical DDNS A/AAAA responses are well under 100 bytes. TCP is enabled and works correctly; clients that query over TCP (e.g. `dig +tcp`) receive full responses regardless of size. EDNS(0) payload-size negotiation (RFC 6891) is also not implemented — the underlying `dns2` library does not expose wire-encoding size before sending, and does not parse OPT records from requests.
+- **DNSSEC not supported** — the server does not sign responses and does not publish DNSKEY, RRSIG, or NSEC records. Validating resolvers will treat all responses as unsigned. DNSSEC requires EDNS(0) (which is implemented), so adding signing support is the primary remaining gap.
+
+- **ANY query returns all records** — the server answers `QTYPE=ANY` with every record at the queried name. RFC 8482 recommends responding with a minimal answer (e.g. a single HINFO record) to discourage amplification. This does not affect normal A/AAAA lookups.
 
 ## Quick Start (Docker)
 

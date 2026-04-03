@@ -233,13 +233,16 @@ module.exports = async function adminRoutes(fastify) {
       return reply.redirect('/admin/domains');
     }
     db.prepare('INSERT INTO zone_static_records (zone_id, name, type, value, ttl, priority) VALUES (?, ?, ?, ?, ?, ?)').run(req.params.id, name, type.toUpperCase(), value, parseInt(ttl || 300, 10), priority || null);
+    db.prepare('UPDATE zones SET soa_serial = soa_serial + 1 WHERE id = ?').run(req.params.id);
     req.session.flash = { type: 'success', message: 'Static record added.' };
     return reply.redirect('/admin/domains');
   });
 
   fastify.post('/admin/domains/static-records/:id/delete', async (req, reply) => {
     const db = getDb();
+    const rec = db.prepare('SELECT zone_id FROM zone_static_records WHERE id = ?').get(req.params.id);
     db.prepare('DELETE FROM zone_static_records WHERE id = ?').run(req.params.id);
+    if (rec) db.prepare('UPDATE zones SET soa_serial = soa_serial + 1 WHERE id = ?').run(rec.zone_id);
     req.session.flash = { type: 'success', message: 'Record deleted.' };
     return reply.redirect('/admin/domains');
   });
@@ -252,6 +255,7 @@ module.exports = async function adminRoutes(fastify) {
       return reply.redirect('/admin/domains');
     }
     db.prepare('INSERT OR IGNORE INTO zone_static_records (zone_id, name, type, value, ttl) VALUES (?, ?, ?, ?, ?)').run(req.params.id, '@', 'A', siteIp, 300);
+    db.prepare('UPDATE zones SET soa_serial = soa_serial + 1 WHERE id = ?').run(req.params.id);
     req.session.flash = { type: 'success', message: 'A record added.' };
     return reply.redirect('/admin/domains');
   });

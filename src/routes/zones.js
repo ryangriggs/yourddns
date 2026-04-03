@@ -280,6 +280,7 @@ module.exports = async function zonesRoutes(fastify) {
       return reply.redirect(`/dashboard/zones/${zone.id}`);
     }
     db.prepare('INSERT OR IGNORE INTO zone_static_records (zone_id, name, type, value, ttl) VALUES (?, ?, ?, ?, ?)').run(zone.id, '@', 'A', siteIp, 300);
+    db.prepare('UPDATE zones SET soa_serial = soa_serial + 1 WHERE id = ?').run(zone.id);
     req.session.flash = { type: 'success', message: 'A record added.' };
     return reply.redirect(`/dashboard/zones/${zone.id}`);
   });
@@ -306,6 +307,7 @@ module.exports = async function zonesRoutes(fastify) {
     db.prepare('INSERT INTO zone_static_records (zone_id, name, type, value, ttl, priority) VALUES (?, ?, ?, ?, ?, ?)').run(
       zone.id, name.trim(), type, value.trim(), parseInt(ttl || 300, 10), priority ? parseInt(priority, 10) : null
     );
+    db.prepare('UPDATE zones SET soa_serial = soa_serial + 1 WHERE id = ?').run(zone.id);
 
     req.session.flash = { type: 'success', message: 'Record added.' };
     return reply.redirect(`/dashboard/zones/${zone.id}`);
@@ -318,6 +320,7 @@ module.exports = async function zonesRoutes(fastify) {
     if (!zone) return reply.code(404).send('Not found');
 
     db.prepare('DELETE FROM zone_static_records WHERE id = ? AND zone_id = ?').run(req.params.rid, zone.id);
+    db.prepare('UPDATE zones SET soa_serial = soa_serial + 1 WHERE id = ?').run(zone.id);
     req.session.flash = { type: 'success', message: 'Record deleted.' };
     return reply.redirect(`/dashboard/zones/${zone.id}`);
   });

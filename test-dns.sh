@@ -383,10 +383,10 @@ expect_answer \
 section "10  RFC compliance — response header flags"
 
 expect_flag    "AA (Authoritative Answer) set for in-zone answer"  aa "A" "statichost4.$DOMAIN"
-expect_flag    "AA set for NXDOMAIN response"                      aa "A" "nxtest-doesnotexist.$DOMAIN"
+expect_flag    "AA set for NXDOMAIN response"                      aa "A" "nxtest.nosuchparent.$DOMAIN"
 expect_flag    "AA set for NODATA response"                        aa "AAAA" "statichost4.$DOMAIN"
 expect_no_flag "RA (Recursion Available) NOT set — auth-only"      ra "A" "statichost4.$DOMAIN"
-expect_no_flag "RA NOT set on NXDOMAIN"                            ra "A" "nxtest-doesnotexist.$DOMAIN"
+expect_no_flag "RA NOT set on NXDOMAIN"                            ra "A" "nxtest.nosuchparent.$DOMAIN"
 
 # ─────────────────────────────────────────────────────────────────────────────
 section "11  Protocol error responses"
@@ -426,6 +426,32 @@ if [[ -n "$NS_HOST" && "$NS_HOST" == *"$DOMAIN"* ]]; then
   fi
 else
   skip "NS glue — NS ($NS_HOST) is outside zone $DOMAIN, glue not applicable"
+fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+section "13  SOA serial increments after static record changes"
+
+# Capture the current serial via a SOA query at the apex
+SERIAL_BEFORE=$(_answer SOA "$DOMAIN" | grep -oP '\d+(?=\s+\d+\s+\d+\s+\d+\s+\d+\s*$)' | head -1)
+
+if [[ -z "$SERIAL_BEFORE" ]]; then
+  skip "SOA serial test — could not read initial SOA serial (SOA query returned nothing)"
+else
+  note "Serial before: $SERIAL_BEFORE"
+  note "Add a temporary TXT record via the admin UI (Admin → Domains → $DOMAIN → Static Records),"
+  note "then delete it, and press ENTER to re-query the serial."
+  read -rp "  Press ENTER after adding and deleting the temporary record..."
+
+  SERIAL_AFTER=$(_answer SOA "$DOMAIN" | grep -oP '\d+(?=\s+\d+\s+\d+\s+\d+\s+\d+\s*$)' | head -1)
+  note "Serial after:  $SERIAL_AFTER"
+
+  if [[ -z "$SERIAL_AFTER" ]]; then
+    fail "SOA serial test  [could not read serial after change]"
+  elif [[ "$SERIAL_AFTER" -gt "$SERIAL_BEFORE" ]]; then
+    pass "SOA serial incremented  [$SERIAL_BEFORE → $SERIAL_AFTER]"
+  else
+    fail "SOA serial NOT incremented  [before=$SERIAL_BEFORE after=$SERIAL_AFTER]"
+  fi
 fi
 
 # =============================================================================
