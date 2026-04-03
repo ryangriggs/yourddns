@@ -387,7 +387,18 @@ async function handleQuery(request, send, rinfo) {
               if (rec.type === 'A') { entry.type = Packet.TYPE.A; entry.address = rec.value; }
               else if (rec.type === 'AAAA') { entry.type = Packet.TYPE.AAAA; entry.address = rec.value; }
               else if (rec.type === 'MX') { entry.type = Packet.TYPE.MX; entry.exchange = rec.value; entry.priority = rec.priority || 10; mxExchanges.add(rec.value); }
-              else if (rec.type === 'TXT') { entry.type = Packet.TYPE.TXT; entry.data = rec.value; }
+              else if (rec.type === 'TXT') {
+                entry.type = Packet.TYPE.TXT;
+                // RFC 1035 §3.3.14: each character-string in TXT RDATA is at most 255 bytes.
+                // dns2 writes the per-chunk length into a single byte; passing a string longer
+                // than 255 bytes causes that byte to overflow (500 & 0xFF = 244), producing a
+                // malformed packet that clients cannot parse.  Split into ≤255-byte chunks so
+                // dns2 receives an already-valid array.
+                const v = rec.value || '';
+                const chunks = [];
+                for (let ci = 0; ci < v.length; ci += 255) chunks.push(v.slice(ci, ci + 255));
+                entry.data = chunks;
+              }
               if (entry.type !== undefined) response.answers.push(entry);
             }
             // Additional section: A/AAAA hints for MX exchange hosts (RFC 1035 §3.3.9 SHOULD)

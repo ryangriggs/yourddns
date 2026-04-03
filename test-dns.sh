@@ -94,6 +94,8 @@ expect_rcode() {
   else
     fail "$desc  [expected $want, got ${got:-<no response>}]"
     note "$(_comments "$@" | grep -E 'status:|flags:' | head -2)"
+    local ans; ans=$(_answer "$@")
+    [[ -n "$ans" ]] && note "answer: $ans"
   fi
 }
 
@@ -473,15 +475,18 @@ BIGNAME="large-txt.$DOMAIN"
 # +noedns instructs dig not to send an EDNS OPT record, simulating a legacy
 # client.  The server must honour the 512-byte UDP limit (RFC 1035 §4.2.1):
 # set TC=1 and trim the oversized answer so it fits in 512 bytes.
+# +ignore prevents dig from auto-retrying via TCP when it sees TC=1 — without
+# it, dig would show the TCP response flags (no TC), making the test a false fail.
 expect_flag \
   "TC bit set on UDP response exceeding 512 B (+noedns, ~556 B response)" \
-  tc "+noedns" TXT "$BIGNAME"
+  tc "+noedns" "+ignore" TXT "$BIGNAME"
 
 # The 500-char TXT record itself occupies ~514 bytes; even after trimming the
 # answer section the remainder (header + question) fits.  Answer must be empty.
+# +ignore is required here for the same reason: prevent TCP auto-retry.
 expect_no_answer \
   "TC: answer section empty after trimming oversized TXT record" \
-  "+noedns" TXT "$BIGNAME"
+  "+noedns" "+ignore" TXT "$BIGNAME"
 
 # ── TCP: no 512-byte size limit ───────────────────────────────────────────────
 # RFC 1035 §4.2.2 — TCP connections carry no 512-byte constraint.  The server
