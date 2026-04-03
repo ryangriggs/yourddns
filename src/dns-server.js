@@ -190,9 +190,6 @@ async function handleQuery(request, send, rinfo) {
   const isUdp = !(rinfo && typeof rinfo.write === 'function');
 
   try {
-    // Silently drop DNS response messages — RFC 1035 §4.1.1 (QR=1 means response, not query)
-    if (request.header.qr === 1) { return; }
-
     // EDNS(0) validation — RFC 6891
     const ednsOpts = (request.additionals || []).filter(r => r.type === EDNS_TYPE);
     if (ednsOpts.length > 1) {
