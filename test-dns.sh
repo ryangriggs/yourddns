@@ -49,6 +49,11 @@ A_DDNS="203.0.113.51"        # ddnshost      DDNS A
 A_WILD="203.0.113.100"       # *             A  (single-level wildcard)
 A_WILD_SUB="203.0.113.200"   # *.sub         A  (second-level wildcard)
 
+# ── TC-bit / TCP-fallback test: large TXT record value ───────────────────────
+# 500 chars of TXT data → DNS response ~556 bytes, safely above the 512-byte
+# legacy-UDP limit (RFC 1035 §4.2.1).  The record name is 'large-txt'.
+BIG_TXT=$(printf '%500s' '' | tr ' ' 'x')
+
 # ── counters ──────────────────────────────────────────────────────────────────
 PASS=0
 FAIL=0
@@ -175,6 +180,7 @@ ${BOLD}Static DNS Records${NC}  (Admin → Domains → $DOMAIN → Static Record
   mail          A       $A_MAIL                  MX target (additional-section test)
   *             A       $A_WILD                  single-level wildcard
   *.sub         A       $A_WILD_SUB              second-level wildcard
+  large-txt     TXT     (500-char value — see below)  §14 TC-bit/TCP fallback test
 
 ${BOLD}DDNS Record${NC}  (Dashboard → My Records)
 
@@ -183,6 +189,10 @@ ${BOLD}DDNS Record${NC}  (Dashboard → My Records)
      curl "https://<your-site>/api/update?key=<PAT>&subdomain=ddnshost.$DOMAIN&ip=$A_DDNS"
 
 SETUP
+
+echo -e "  ${BOLD}TXT value for \`large-txt\` record${NC} (copy-paste exactly as the value):"
+echo -e "  ${DIM}${BIG_TXT}${NC}"
+echo ""
 
 read -rp "Press ENTER once all records are in place and ddnshost has been updated..."
 echo ""
@@ -292,10 +302,10 @@ expect_authority_soa \
 # ─────────────────────────────────────────────────────────────────────────────
 section "7  NXDOMAIN — nonexistent names"
 
-# Use a two-label subdomain (nxtest.nosuchparent) so no wildcard can match it.
+# Use a two-label subdomain (nxd-probe-x9q7.nxd-void-zone) so no wildcard can match it.
 # The * wildcard only matches single-label names; *.sub only matches x.sub.
-# nxtest.nosuchparent has no wildcard (nosuchparent != sub) and no explicit record.
-NONAME="nxtest.nosuchparent.$DOMAIN"
+# nxd-void-zone has no wildcard record, and nxd-probe-x9q7 will never be a real record.
+NONAME="nxd-probe-x9q7.nxd-void-zone.$DOMAIN"
 
 expect_rcode         "NXDOMAIN  A query"                NXDOMAIN A     "$NONAME"
 expect_authority_soa "NXDOMAIN  SOA in authority (A)"            A     "$NONAME"
@@ -383,10 +393,10 @@ expect_answer \
 section "10  RFC compliance — response header flags"
 
 expect_flag    "AA (Authoritative Answer) set for in-zone answer"  aa "A" "statichost4.$DOMAIN"
-expect_flag    "AA set for NXDOMAIN response"                      aa "A" "nxtest.nosuchparent.$DOMAIN"
+expect_flag    "AA set for NXDOMAIN response"                      aa "A" "nxd-probe-x9q7.nxd-void-zone.$DOMAIN"
 expect_flag    "AA set for NODATA response"                        aa "AAAA" "statichost4.$DOMAIN"
 expect_no_flag "RA (Recursion Available) NOT set — auth-only"      ra "A" "statichost4.$DOMAIN"
-expect_no_flag "RA NOT set on NXDOMAIN"                            ra "A" "nxtest.nosuchparent.$DOMAIN"
+expect_no_flag "RA NOT set on NXDOMAIN"                            ra "A" "nxd-probe-x9q7.nxd-void-zone.$DOMAIN"
 
 # ─────────────────────────────────────────────────────────────────────────────
 section "11  Protocol error responses"
@@ -453,6 +463,40 @@ else
     fail "SOA serial NOT incremented  [before=$SERIAL_BEFORE after=$SERIAL_AFTER]"
   fi
 fi
+
+# ─────────────────────────────────────────────────────────────────────────────
+section "14  UDP truncation (TC bit) and TCP fallback  [RFC 1035 §4.2.1, §4.2.2]"
+
+BIGNAME="large-txt.$DOMAIN"
+
+# ── non-EDNS UDP: 512-byte limit applies ─────────────────────────────────────
+# +noedns instructs dig not to send an EDNS OPT record, simulating a legacy
+# client.  The server must honour the 512-byte UDP limit (RFC 1035 §4.2.1):
+# set TC=1 and trim the oversized answer so it fits in 512 bytes.
+expect_flag \
+  "TC bit set on UDP response exceeding 512 B (+noedns, ~556 B response)" \
+  tc "+noedns" TXT "$BIGNAME"
+
+# The 500-char TXT record itself occupies ~514 bytes; even after trimming the
+# answer section the remainder (header + question) fits.  Answer must be empty.
+expect_no_answer \
+  "TC: answer section empty after trimming oversized TXT record" \
+  "+noedns" TXT "$BIGNAME"
+
+# ── TCP: no 512-byte size limit ───────────────────────────────────────────────
+# RFC 1035 §4.2.2 — TCP connections carry no 512-byte constraint.  The server
+# must return the full response without truncation.
+expect_rcode \
+  "TCP: full >512 B response delivers NOERROR" \
+  NOERROR "+tcp" TXT "$BIGNAME"
+
+expect_answer \
+  "TCP: complete TXT value present in answer (verifies content, not just type)" \
+  "x{50,}" "+tcp" TXT "$BIGNAME"
+
+expect_no_flag \
+  "TC bit NOT set on TCP response" \
+  tc "+tcp" TXT "$BIGNAME"
 
 # =============================================================================
 # SUMMARY
