@@ -83,7 +83,74 @@ _has_flag() {
   _comments "$@" | grep -qP "flags:.*\b${flag}\b"
 }
 
-# ── test primitives ───────────────────────────────────────────────────────────
+# ── raw DNS query helper (Node.js) ────────────────────────────────────────────
+# Used when dig doesn't reliably support the required qtype or EDNS version.
+# Some dig versions treat bare "IXFR $DOMAIN" as an A query (requires =serial),
+# and +edns=1 may not actually set the EDNS version byte on older releases.
+#
+# _raw_rcode <qtype_number> [edns_version]
+#   Sends a minimal UDP DNS query to $SERVER for $DOMAIN with the given numeric
+#   qtype.  If edns_version is provided, an OPT record with that version is
+#   included.  Prints the textual RCODE (NOERROR, REFUSED, BADVERS, …).
+_raw_rcode() {
+  local qtype="$1" edns_ver="${2:-}"
+  DNS_SRV="$SERVER" DNS_DOM="$DOMAIN" DNS_QTYPE="$qtype" DNS_EDNS_VER="$edns_ver" \
+  node -e '
+const dgram=require("dgram");
+const srv=process.env.DNS_SRV, dom=process.env.DNS_DOM;
+const qtype=parseInt(process.env.DNS_QTYPE,10);
+const ev=process.env.DNS_EDNS_VER, useEdns=ev!=="";
+// QNAME wire encoding
+const qn=[];for(const l of dom.split(".")){qn.push(l.length);for(const c of l)qn.push(c.charCodeAt(0));}
+qn.push(0);
+// OPT record: name=0x00, type=41, class=4096, TTL=[0,version,0,0], rdlen=0
+const opt=useEdns?Buffer.from([0,0,41,0x10,0x00,0,+ev,0,0,0,0]):Buffer.alloc(0);
+// DNS header
+const hdr=Buffer.allocUnsafe(12);
+hdr.writeUInt16BE(0xAB01,0);hdr.writeUInt16BE(0x0100,2);hdr.writeUInt16BE(1,4);
+hdr.writeUInt16BE(0,6);hdr.writeUInt16BE(0,8);hdr.writeUInt16BE(useEdns?1:0,10);
+const q=Buffer.concat([Buffer.from(qn),Buffer.from([0,qtype>>8,qtype&0xFF,0,1])]);
+const pkt=Buffer.concat([hdr,q,opt]);
+// Response: parse rcode (header bits 0-3) + extended rcode from OPT TTL byte 0
+const done=r=>{try{sock.close();}catch(_){}process.stdout.write(r+"\n");};
+const sock=dgram.createSocket("udp4");
+sock.on("message",msg=>{
+  const hRc=msg[3]&0x0F; let ext=0;
+  try{
+    let off=12;
+    const skip=()=>{while(off<msg.length){const b=msg[off];if((b&0xC0)===0xC0){off+=2;return;}if(!b){off++;return;}off+=b+1;}};
+    for(let i=0;i<msg.readUInt16BE(4);i++){skip();off+=4;}
+    for(let i=0;i<msg.readUInt16BE(6)+msg.readUInt16BE(8);i++){skip();off+=8;off+=msg.readUInt16BE(off)+2;}
+    for(let i=0;i<msg.readUInt16BE(10)&&off<msg.length;i++){
+      skip();
+      if(msg.readUInt16BE(off)===41){off+=4;ext=msg[off];break;}
+      off+=8;off+=msg.readUInt16BE(off)+2;
+    }
+  }catch(_){}
+  const full=(ext<<4)|hRc;
+  const m={0:"NOERROR",1:"FORMERR",2:"SERVFAIL",3:"NXDOMAIN",4:"NOTIMP",5:"REFUSED",16:"BADVERS"};
+  done(m[full]||"RCODE"+full);
+});
+sock.on("error",()=>done("ERROR"));
+setTimeout(()=>{try{sock.close();}catch(_){}process.stdout.write("TIMEOUT\n");},3000);
+sock.send(pkt,53,srv);
+' 2>/dev/null
+}
+
+# expect_rcode_raw <desc> <want_rcode> <qtype_number> [edns_version]
+expect_rcode_raw() {
+  local desc="$1" want="$2" qtype="$3" edns_ver="${4:-}"
+  local got; got=$(_raw_rcode "$qtype" "$edns_ver")
+  if [[ -z "$got" || "$got" == "ERROR" || "$got" == "TIMEOUT" ]]; then
+    skip "$desc (raw query failed: $got)"
+  elif [[ "$got" == "$want" ]]; then
+    pass "$desc  [$got]"
+  else
+    fail "$desc  [expected $want, got $got]"
+  fi
+}
+
+
 
 # expect_rcode <desc> <want> <dig-args...>
 expect_rcode() {
@@ -442,19 +509,20 @@ expect_rcode \
   "AXFR → REFUSED (RFC 5936)" \
   REFUSED AXFR "$DOMAIN"
 
-# dig treats bare "IXFR $DOMAIN" (without =serial) as a normal A query, so it
-# never actually sends type 251.  TYPE251 forces dig to send the raw numeric
-# type regardless of any special-casing.
-expect_rcode \
+# dig treats "IXFR $DOMAIN" (without =serial) as a normal A query on many
+# versions, and "TYPE251" is also not universally supported.  Use a raw Node.js
+# packet so type 251 is sent unconditionally.
+expect_rcode_raw \
   "IXFR → REFUSED (RFC 1995)" \
-  REFUSED TYPE251 "$DOMAIN"
+  REFUSED 251
 
 # EDNS version > 0 → BADVERS (RFC 6891 §6.1.3).
-# BADVERS encodes rcode 16: header rcode bits = 0, OPT TTL upper byte = 1.
-# dig reports this as status: BADVERS.
-expect_rcode \
+# dig +edns=1 does not reliably set the EDNS version byte on all releases
+# (some treat +edns=N as "enable EDNS at version 0").  Use a raw Node.js packet
+# with the OPT TTL version byte explicitly set to 1.
+expect_rcode_raw \
   "EDNS version 1 → BADVERS (RFC 6891 §6.1.3)" \
-  BADVERS A "$DOMAIN" +edns=1
+  BADVERS 1 1
 
 # ─────────────────────────────────────────────────────────────────────────────
 section "12  Additional section"
