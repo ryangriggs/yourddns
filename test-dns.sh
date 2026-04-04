@@ -442,9 +442,12 @@ expect_rcode \
   "AXFR → REFUSED (RFC 5936)" \
   REFUSED AXFR "$DOMAIN"
 
+# dig treats bare "IXFR $DOMAIN" (without =serial) as a normal A query, so it
+# never actually sends type 251.  TYPE251 forces dig to send the raw numeric
+# type regardless of any special-casing.
 expect_rcode \
   "IXFR → REFUSED (RFC 1995)" \
-  REFUSED IXFR "$DOMAIN"
+  REFUSED TYPE251 "$DOMAIN"
 
 # EDNS version > 0 → BADVERS (RFC 6891 §6.1.3).
 # BADVERS encodes rcode 16: header rcode bits = 0, OPT TTL upper byte = 1.

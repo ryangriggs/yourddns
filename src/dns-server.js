@@ -97,11 +97,11 @@ function buildSoa(zone) {
 //      until the response fits.  The OPT record in additionals is never removed.
 //   5. Set TC=1 if any record was removed.
 //
-function finalizeUdpResponseFor(request, response, isUdp) {
+function finalizeUdpResponseFor(incomingAdditionals, response, isUdp) {
   if (!isUdp) return; // TCP has no size constraint
 
   // ── Step 1: read client EDNS OPT ─────────────────────────────────────────
-  const reqOpt = (request.additionals || []).find(r => r.type === EDNS_TYPE);
+  const reqOpt = incomingAdditionals.find(r => r.type === EDNS_TYPE);
   // The OPT CLASS field carries the client's max UDP payload size (RFC 6891 §6.1.2).
   // Clamp to at least 512 (malformed OPT with class=0 should still behave sane).
   const clientUdpMax = reqOpt ? Math.max(reqOpt.class || 0, LEGACY_UDP_MAX) : LEGACY_UDP_MAX;
@@ -182,6 +182,12 @@ function lookupAdditional(db, zones, hostname) {
 }
 
 async function handleQuery(request, send, rinfo) {
+  // dns2's createResponseFromRequest returns `request` itself (new Packet(request) returns
+  // data when data instanceof Packet — see packet.js line 51-52), then immediately sets
+  // response.additionals = [] on that same object.  Any OPT records the client sent are
+  // destroyed before we can read them.  Snapshot additionals NOW, before the wipe.
+  const incomingAdditionals = (request.additionals || []).slice();
+
   const response = Packet.createResponseFromRequest(request);
   response.header.ra = 0; // authoritative-only — we do not support recursion
   const db = getDb();
@@ -191,7 +197,7 @@ async function handleQuery(request, send, rinfo) {
 
   try {
     // EDNS(0) validation — RFC 6891
-    const ednsOpts = (request.additionals || []).filter(r => r.type === EDNS_TYPE);
+    const ednsOpts = incomingAdditionals.filter(r => r.type === EDNS_TYPE);
     if (ednsOpts.length > 1) {
       // RFC 6891 §6.1.1: at most one OPT record per message
       response.header.rcode = RCODE.FORMERR;
@@ -492,7 +498,7 @@ async function handleQuery(request, send, rinfo) {
   // For TCP responses this is a no-op.  For UDP it reads the client OPT (if any),
   // adds our OPT advertising EDNS_ADVERTISED_UDP bytes, then trims and sets TC=1
   // if the encoded response exceeds the negotiated limit.
-  finalizeUdpResponseFor(request, response, isUdp);
+  finalizeUdpResponseFor(incomingAdditionals, response, isUdp);
   send(response);
 }
 
