@@ -230,6 +230,18 @@ expect_answer \
   "alias.$DOMAIN  A query → CNAME returned (RFC 1034 §3.6.2)" \
   '\bCNAME\b' A "alias.$DOMAIN"
 
+# An authoritative server must NOT chase the CNAME chain (RFC 1034 §3.6.2).
+# Chasing (returning the A record the CNAME points to) is a resolver's job.
+# The answer section must contain exactly one record: the CNAME itself.
+CNAME_ANS=$(_answer A "alias.$DOMAIN")
+CNAME_COUNT=$(echo "$CNAME_ANS" | grep -cP '\S' 2>/dev/null || echo 0)
+if [[ "$CNAME_COUNT" -eq 1 ]]; then
+  pass "alias.$DOMAIN  A query → exactly 1 answer (CNAME only, not chased)"
+else
+  fail "alias.$DOMAIN  A query → expected 1 answer (CNAME), got $CNAME_COUNT"
+  note "$CNAME_ANS"
+fi
+
 # ─────────────────────────────────────────────────────────────────────────────
 section "3  DDNS record"
 
@@ -400,6 +412,16 @@ expect_flag    "AA set for NODATA response"                        aa "AAAA" "st
 expect_no_flag "RA (Recursion Available) NOT set — auth-only"      ra "A" "statichost4.$DOMAIN"
 expect_no_flag "RA NOT set on NXDOMAIN"                            ra "A" "nxd-probe-x9q7.nxd-void-zone.$DOMAIN"
 
+# RFC 4343 §2: DNS names are case-insensitive at every label.  A query using
+# all-uppercase labels must resolve identically to the same name in lowercase.
+expect_answer \
+  "Case-insensitive query  STATICHOST4.$DOMAIN → $A_STATIC (RFC 4343 §2)" \
+  "$A_STATIC" A "$(echo "statichost4.$DOMAIN" | tr 'a-z' 'A-Z')"
+
+expect_answer \
+  "Case-insensitive apex  $(echo "$DOMAIN" | tr 'a-z' 'A-Z')  A → $A_APEX" \
+  "$A_APEX" A "$(echo "$DOMAIN" | tr 'a-z' 'A-Z')"
+
 # ─────────────────────────────────────────────────────────────────────────────
 section "11  Protocol error responses"
 
@@ -413,6 +435,23 @@ expect_rcode \
 expect_rcode \
   "NOTIMP for non-IN class (CHAOS TXT version.bind)" \
   NOTIMP TXT "version.bind" -c CH
+
+# AXFR (RFC 5936) and IXFR (RFC 1995) zone-transfer requests must be REFUSED
+# by an authoritative-only server that does not support zone transfers.
+expect_rcode \
+  "AXFR → REFUSED (RFC 5936)" \
+  REFUSED AXFR "$DOMAIN"
+
+expect_rcode \
+  "IXFR → REFUSED (RFC 1995)" \
+  REFUSED IXFR "$DOMAIN"
+
+# EDNS version > 0 → BADVERS (RFC 6891 §6.1.3).
+# BADVERS encodes rcode 16: header rcode bits = 0, OPT TTL upper byte = 1.
+# dig reports this as status: BADVERS.
+expect_rcode \
+  "EDNS version 1 → BADVERS (RFC 6891 §6.1.3)" \
+  BADVERS A "$DOMAIN" +edns=1
 
 # ─────────────────────────────────────────────────────────────────────────────
 section "12  Additional section"
@@ -502,6 +541,23 @@ expect_answer \
 expect_no_flag \
   "TC bit NOT set on TCP response" \
   tc "+tcp" TXT "$BIGNAME"
+
+# ── EDNS UDP: client advertises 4096-byte buffer ──────────────────────────────
+# RFC 6891 §4: when the client sends an OPT record advertising a buffer size
+# larger than the encoded response, the server must deliver the full response
+# without truncation.  The default dig behaviour (EDNS, bufsize=1232 or 4096)
+# already satisfies this, but we make it explicit with +bufsize=4096.
+expect_rcode \
+  "EDNS client (bufsize=4096) gets full >512 B response over UDP — NOERROR" \
+  NOERROR "+bufsize=4096" TXT "$BIGNAME"
+
+expect_answer \
+  "EDNS client: full TXT value present (no truncation)" \
+  "x{50,}" "+bufsize=4096" TXT "$BIGNAME"
+
+expect_no_flag \
+  "EDNS client: TC NOT set (response fits within advertised buffer)" \
+  tc "+bufsize=4096" TXT "$BIGNAME"
 
 # =============================================================================
 # SUMMARY
