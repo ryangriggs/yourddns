@@ -434,12 +434,15 @@ a:hover { text-decoration: underline; }
   justify-content: space-between;
 }
 .card-title { font-size: 0.9375rem; font-weight: 600; color: #111827; }
-.card-body { padding: 20px; }
+.card-body { padding: 20px; overflow-x: auto; }
 .card-body.p-0 { padding: 0; }
 .mb-4 { margin-bottom: 16px; }
 
 /* ── Tables ──────────────────────────────────────────────────────────────── */
-.table-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+/* .table-scroll wraps bare <table> elements that are direct children of .card
+   (not inside .card-body) so they get their own horizontal scroll container. */
+.table-scroll { overflow-x: auto; }
+.table-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
 .table th {
   text-align: left;
@@ -584,7 +587,7 @@ a:hover { text-decoration: underline; }
   white-space: pre;
   margin: 0.5rem 0 0;
 }
-.api-endpoint { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #f3f4f6; }
+.api-endpoint { margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 1px solid #f3f4f6; overflow-x: auto; }
 .api-endpoint:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
 .api-method {
   display: inline-block;
@@ -641,7 +644,7 @@ a:hover { text-decoration: underline; }
 .setup-tab.active { color: #111827; border-bottom-color: #111827; }
 .setup-tab:hover { color: #374151; }
 .setup-panel { display: none; }
-.setup-panel.active { display: block; }
+.setup-panel.active { display: block; overflow-x: auto; }
 .setup-desc { font-size: 0.875rem; color: #6b7280; margin-bottom: 16px; }
 
 .code-block {

@@ -78,6 +78,7 @@
       <button class="btn btn-sm btn-outline" onclick="openModal('addStaticModal')">+ Add Record</button>
     </div>
     {% if staticRecords | length > 0 %}
+    <div class="table-scroll">
     <table class="table">
       <thead>
         <tr><th>Name</th><th>Type</th><th>Value</th><th>TTL</th><th></th></tr>
@@ -99,6 +100,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="card-body">
       <p class="text-muted">No static records yet. Add A, AAAA, CNAME, MX, or TXT records for <strong>{{ zone.domain }}</strong>.</p>
