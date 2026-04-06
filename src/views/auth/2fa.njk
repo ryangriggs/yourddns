@@ -1,0 +1,72 @@
+{% extends "layouts/base.njk" %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-header">
+    <h1 class="auth-title">Two-Factor Authentication</h1>
+    <p class="auth-subtitle">Enter the 6-digit code from your authenticator app</p>
+  </div>
+
+  {% if error == 'invalid_code' %}
+  <div class="alert alert-error">Invalid code. Please try again.</div>
+  {% endif %}
+
+  <form method="post" action="/auth/2fa" class="auth-form" autocomplete="off">
+    <div class="form-group">
+      <label class="form-label" for="code">Authenticator code</label>
+      <input
+        type="text"
+        id="code"
+        name="code"
+        class="form-input"
+        required
+        autofocus
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        placeholder="123456"
+        maxlength="20"
+        style="letter-spacing:0.15em;font-size:1.25rem;text-align:center"
+      >
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">Verify</button>
+  </form>
+
+  <p class="auth-footer" style="margin-top:1rem">
+    Lost access to your authenticator?
+    Use a <a href="#" onclick="showBackup();return false">backup code</a>.
+  </p>
+
+  <div id="backupSection" style="display:none;margin-top:1rem">
+    <form method="post" action="/auth/2fa" class="auth-form" autocomplete="off">
+      <div class="form-group">
+        <label class="form-label" for="backupCode">Backup code</label>
+        <input
+          type="text"
+          id="backupCode"
+          name="code"
+          class="form-input"
+          placeholder="XXXXXX-XXXXXX"
+          autocomplete="off"
+          style="letter-spacing:0.1em;text-align:center"
+        >
+      </div>
+      <button type="submit" class="btn btn-outline btn-full">Use backup code</button>
+    </form>
+  </div>
+
+  <p class="auth-footer"><a href="/auth/login">Back to sign in</a></p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showBackup() {
+  document.getElementById('backupSection').style.display = '';
+  document.getElementById('backupCode').focus();
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('code').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); e.target.closest('form').submit(); }
+  });
+});
+</script>
+{% endblock %}

@@ -77,6 +77,49 @@
   </div>
   {% endif %}
 
+  <div class="card mb-4">
+    <div class="card-header"><h2 class="card-title">Two-Factor Authentication</h2></div>
+    <div class="card-body">
+      {% if user.totp_enabled %}
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="badge badge-green">Enabled</span>
+      </div>
+      <p class="text-muted mt-3 mb-3" style="font-size:0.875rem">
+        To disable two-factor authentication, enter your current authenticator code or a backup code.
+      </p>
+      <form method="post" action="/dashboard/profile/2fa/disable" autocomplete="off"
+            onsubmit="return confirm('Disable two-factor authentication?')">
+        <div class="form-group">
+          <label class="form-label" for="disable_code">Authenticator or backup code</label>
+          <input
+            type="text"
+            id="disable_code"
+            name="code"
+            class="form-input"
+            required
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            placeholder="123456 or XXXXXX-XXXXXX"
+            style="max-width:240px"
+          >
+        </div>
+        <button type="submit" class="btn btn-danger btn-sm">Disable 2FA</button>
+      </form>
+      {% else %}
+      <div class="info-row">
+        <span class="info-label">Status</span>
+        <span class="badge badge-gray">Not enabled</span>
+      </div>
+      <p class="text-muted mt-3 mb-3" style="font-size:0.875rem">
+        Add an extra layer of security to your account. You'll need an authenticator app such as
+        Google Authenticator, Authy, or 1Password.
+      </p>
+      <a href="/dashboard/profile/2fa/setup" class="btn btn-primary btn-sm">Enable 2FA</a>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="card">
     {% if user.password_hash %}
     <div class="card-header"><h2 class="card-title">Change Password</h2></div>

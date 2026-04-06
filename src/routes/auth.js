@@ -4,10 +4,25 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { getDb, getSetting } = require('../db/index');
 const { sendVerificationEmail, sendPasswordResetEmail, sendOtpEmail } = require('../services/email');
+const { verifyTotp, verifyAndConsumeBackupCode } = require('../services/totp');
 
 // Only allow relative redirects — prevents open redirect via returnTo
 function isSafeRedirect(url) {
   return typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\');
+}
+
+// If user has 2FA enabled, park userId in session and redirect to 2FA page.
+// Otherwise complete the login immediately.
+async function completeLoginOrRequire2fa(req, reply, user, dest) {
+  if (user.totp_enabled) {
+    await req.session.regenerate();
+    req.session.pending2faUserId = user.id;
+    req.session.pending2faReturnTo = dest;
+    return reply.redirect('/auth/2fa');
+  }
+  await req.session.regenerate();
+  req.session.userId = user.id;
+  return reply.redirect(dest);
 }
 
 module.exports = async function authRoutes(fastify) {
@@ -42,9 +57,7 @@ module.exports = async function authRoutes(fastify) {
     if (!user.email_verified) return reply.redirect('/auth/login?error=unverified&email=' + encodeURIComponent(email));
 
     const dest = isSafeRedirect(req.session.returnTo) ? req.session.returnTo : '/dashboard';
-    await req.session.regenerate();
-    req.session.userId = user.id;
-    return reply.redirect(dest);
+    return completeLoginOrRequire2fa(req, reply, user, dest);
   });
 
   // GET /auth/register
@@ -259,9 +272,7 @@ module.exports = async function authRoutes(fastify) {
     }
 
     const dest = isSafeRedirect(req.session.returnTo) ? req.session.returnTo : '/dashboard';
-    await req.session.regenerate();
-    req.session.userId = user.id;
-    return reply.redirect(dest);
+    return completeLoginOrRequire2fa(req, reply, user, dest);
   });
 
   // POST /auth/logout
@@ -345,9 +356,7 @@ module.exports = async function authRoutes(fastify) {
       const user = db.prepare('SELECT * FROM users WHERE id = ?').get(oauthAccount.user_id);
       if (!user || user.is_disabled) return reply.redirect('/auth/login?error=disabled');
       const dest = isSafeRedirect(req.session.returnTo) ? req.session.returnTo : '/dashboard';
-      await req.session.regenerate();
-      req.session.userId = user.id;
-      return reply.redirect(dest);
+      return completeLoginOrRequire2fa(req, reply, user, dest);
     }
 
     // Look up existing user by email
@@ -369,8 +378,55 @@ module.exports = async function authRoutes(fastify) {
     }
 
     const dest = isSafeRedirect(req.session.returnTo) ? req.session.returnTo : '/dashboard';
-    await req.session.regenerate();
-    req.session.userId = user.id;
-    return reply.redirect(dest);
+    return completeLoginOrRequire2fa(req, reply, user, dest);
+  });
+
+  // ── Two-Factor Authentication ───────────────────────────────────────────────
+
+  // GET /auth/2fa
+  fastify.get('/auth/2fa', async (req, reply) => {
+    if (!req.session.pending2faUserId) return reply.redirect('/auth/login');
+    if (req.user) return reply.redirect('/dashboard');
+    return reply.view('auth/2fa.njk', { title: 'Two-Factor Authentication', error: req.query.error });
+  });
+
+  // POST /auth/2fa
+  fastify.post('/auth/2fa', { config: { rateLimit: { max: 10, timeWindow: '15 minutes' } } }, async (req, reply) => {
+    const userId = req.session.pending2faUserId;
+    if (!userId) return reply.redirect('/auth/login');
+
+    const db = getDb();
+    const user = db.prepare('SELECT * FROM users WHERE id = ? AND is_disabled = 0').get(userId);
+    if (!user || !user.totp_enabled) {
+      delete req.session.pending2faUserId;
+      delete req.session.pending2faReturnTo;
+      return reply.redirect('/auth/login');
+    }
+
+    const { code } = req.body || {};
+    const dest = isSafeRedirect(req.session.pending2faReturnTo) ? req.session.pending2faReturnTo : '/dashboard';
+
+    // Try TOTP code first
+    if (code && verifyTotp(user.totp_secret, code)) {
+      delete req.session.pending2faUserId;
+      delete req.session.pending2faReturnTo;
+      await req.session.regenerate();
+      req.session.userId = user.id;
+      return reply.redirect(dest);
+    }
+
+    // Try backup code
+    const storedHashes = user.totp_backup_codes ? JSON.parse(user.totp_backup_codes) : [];
+    const remaining = verifyAndConsumeBackupCode(code, storedHashes);
+    if (remaining !== false) {
+      db.prepare('UPDATE users SET totp_backup_codes = ? WHERE id = ?').run(JSON.stringify(remaining), user.id);
+      delete req.session.pending2faUserId;
+      delete req.session.pending2faReturnTo;
+      await req.session.regenerate();
+      req.session.userId = user.id;
+      return reply.redirect(dest);
+    }
+
+    return reply.redirect('/auth/2fa?error=invalid_code');
   });
 };

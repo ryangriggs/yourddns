@@ -1,0 +1,63 @@
+{% extends "layouts/base.njk" %}
+{% set activePage = 'profile' %}
+{% block content %}
+<div class="page-container page-narrow">
+  <div class="page-header">
+    <h1 class="page-title">Set Up Two-Factor Authentication</h1>
+  </div>
+
+  {% if error == 'invalid_code' %}
+  <div class="alert alert-error mb-4">Invalid code. Make sure your authenticator app is set up correctly and try again.</div>
+  {% endif %}
+
+  <div class="card mb-4">
+    <div class="card-header"><h2 class="card-title">Step 1 — Scan QR Code</h2></div>
+    <div class="card-body" style="text-align:center">
+      <p class="text-muted mb-3" style="font-size:0.875rem">
+        Open your authenticator app (Google Authenticator, Authy, 1Password, etc.) and scan this QR code.
+      </p>
+      <img src="{{ qrDataUrl }}" alt="2FA QR Code" style="max-width:200px;width:100%;border:1px solid var(--border-color);border-radius:8px;padding:8px;background:#fff">
+      <details style="margin-top:1rem;text-align:left">
+        <summary style="cursor:pointer;font-size:0.8rem;color:var(--text-muted)">Can't scan? Enter key manually</summary>
+        <div style="margin-top:0.5rem;padding:0.75rem;background:var(--bg-secondary);border-radius:6px;font-family:monospace;font-size:0.875rem;word-break:break-all;letter-spacing:0.05em">
+          {{ secret }}
+        </div>
+        <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem">
+          Select "Time-based" / TOTP when prompted by your app.
+        </p>
+      </details>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2 class="card-title">Step 2 — Confirm Setup</h2></div>
+    <div class="card-body">
+      <p class="text-muted mb-3" style="font-size:0.875rem">
+        Enter the 6-digit code from your authenticator app to confirm it's working correctly.
+      </p>
+      <form method="post" action="/dashboard/profile/2fa/enable" autocomplete="off">
+        <div class="form-group">
+          <label class="form-label" for="code">Authenticator code</label>
+          <input
+            type="text"
+            id="code"
+            name="code"
+            class="form-input"
+            required
+            autofocus
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            placeholder="123456"
+            maxlength="6"
+            style="letter-spacing:0.15em;font-size:1.25rem;text-align:center;max-width:160px"
+          >
+        </div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+          <button type="submit" class="btn btn-primary">Enable 2FA</button>
+          <a href="/dashboard/profile" class="btn btn-outline">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

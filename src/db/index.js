@@ -93,6 +93,21 @@ async function initDb() {
     console.log('[db] Migration: added new_ip6 to update_logs');
   }
 
+  // 2FA columns on users
+  const userCols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
+  if (!userCols.includes('totp_secret')) {
+    db.exec('ALTER TABLE users ADD COLUMN totp_secret TEXT');
+    console.log('[db] Migration: added totp_secret to users');
+  }
+  if (!userCols.includes('totp_enabled')) {
+    db.exec('ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0');
+    console.log('[db] Migration: added totp_enabled to users');
+  }
+  if (!userCols.includes('totp_backup_codes')) {
+    db.exec('ALTER TABLE users ADD COLUMN totp_backup_codes TEXT');
+    console.log('[db] Migration: added totp_backup_codes to users');
+  }
+
   // zone_api_keys — added when zone API was introduced
   const apiKeyTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='zone_api_keys'").get();
   if (!apiKeyTables) {

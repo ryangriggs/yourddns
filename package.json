@@ -1,6 +1,6 @@
 {
   "name": "yourddns",
-  "version": "1.35.0",
+  "version": "1.36.0",
   "description": "Self-hosted dynamic DNS service",
   "main": "src/server.js",
   "scripts": {
@@ -24,6 +24,7 @@
     "fastify": "^4.27.0",
     "fastify-plugin": "^4.5.1",
     "nunjucks": "^3.2.4",
+    "qrcode": "^1.5.4",
     "resend": "^3.2.0",
     "stripe": "^14.21.0"
   },

@@ -1,8 +1,10 @@
 'use strict';
 
 const net = require('net');
+const QRCode = require('qrcode');
 const { getDb, getSetting } = require('../db/index');
 const { generatePat, hashPat } = require('../services/pat');
+const { generateSecret, verifyTotp, getTotpUri, generateBackupCodes, hashBackupCodes, verifyAndConsumeBackupCode } = require('../services/totp');
 
 module.exports = async function dashboardRoutes(fastify) {
   fastify.addHook('preHandler', fastify.requireAuth);
@@ -390,6 +392,84 @@ module.exports = async function dashboardRoutes(fastify) {
     }
     db.prepare("DELETE FROM oauth_accounts WHERE user_id = ? AND provider = 'google'").run(req.user.id);
     req.session.flash = { type: 'success', message: 'Google account unlinked.' };
+    return reply.redirect('/dashboard/profile');
+  });
+
+  // ── Two-Factor Authentication ───────────────────────────────────────────────
+
+  // GET /dashboard/profile/2fa/setup
+  fastify.get('/dashboard/profile/2fa/setup', async (req, reply) => {
+    if (req.user.totp_enabled) return reply.redirect('/dashboard/profile');
+    // Generate a fresh secret each time the setup page is loaded
+    const secret = generateSecret();
+    req.session.pending2faSetupSecret = secret;
+    const siteName = getSetting('site_name') || 'YourDDNS';
+    const uri = getTotpUri(secret, req.user.email, siteName);
+    const qrDataUrl = await QRCode.toDataURL(uri, { width: 200, margin: 2 });
+    return reply.view('dashboard/2fa-setup.njk', {
+      title: 'Set Up Two-Factor Authentication',
+      secret,
+      qrDataUrl,
+      error: req.query.error,
+    });
+  });
+
+  // POST /dashboard/profile/2fa/enable
+  fastify.post('/dashboard/profile/2fa/enable', async (req, reply) => {
+    if (req.user.totp_enabled) return reply.redirect('/dashboard/profile');
+    const secret = req.session.pending2faSetupSecret;
+    if (!secret) return reply.redirect('/dashboard/profile/2fa/setup');
+
+    const { code } = req.body || {};
+    if (!verifyTotp(secret, code)) {
+      return reply.redirect('/dashboard/profile/2fa/setup?error=invalid_code');
+    }
+
+    // Generate backup codes
+    const backupCodes = generateBackupCodes();
+    const backupHashes = hashBackupCodes(backupCodes);
+
+    const db = getDb();
+    db.prepare('UPDATE users SET totp_secret = ?, totp_enabled = 1, totp_backup_codes = ? WHERE id = ?')
+      .run(secret, JSON.stringify(backupHashes), req.user.id);
+
+    delete req.session.pending2faSetupSecret;
+    req.session.newBackupCodes = backupCodes;
+    return reply.redirect('/dashboard/profile/2fa/backup-codes');
+  });
+
+  // GET /dashboard/profile/2fa/backup-codes
+  fastify.get('/dashboard/profile/2fa/backup-codes', async (req, reply) => {
+    const codes = req.session.newBackupCodes;
+    if (!codes) return reply.redirect('/dashboard/profile');
+    delete req.session.newBackupCodes;
+    return reply.view('dashboard/2fa-backup-codes.njk', {
+      title: 'Save Your Backup Codes',
+      backupCodes: codes,
+    });
+  });
+
+  // POST /dashboard/profile/2fa/disable
+  fastify.post('/dashboard/profile/2fa/disable', async (req, reply) => {
+    if (!req.user.totp_enabled) return reply.redirect('/dashboard/profile');
+    const { code } = req.body || {};
+    const db = getDb();
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+
+    // Accept TOTP code or backup code
+    let valid = verifyTotp(user.totp_secret, code);
+    if (!valid) {
+      const hashes = user.totp_backup_codes ? JSON.parse(user.totp_backup_codes) : [];
+      valid = verifyAndConsumeBackupCode(code, hashes) !== false;
+    }
+
+    if (!valid) {
+      req.session.flash = { type: 'error', message: 'Invalid code. Two-factor authentication was not disabled.' };
+      return reply.redirect('/dashboard/profile');
+    }
+
+    db.prepare('UPDATE users SET totp_secret = NULL, totp_enabled = 0, totp_backup_codes = NULL WHERE id = ?').run(req.user.id);
+    req.session.flash = { type: 'success', message: 'Two-factor authentication disabled.' };
     return reply.redirect('/dashboard/profile');
   });
 
