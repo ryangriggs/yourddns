@@ -172,9 +172,9 @@ module.exports = async function apiRoutes(fastify) {
     const { subdomain, ip, ip6, ttl } = req.body || {};
     if (!subdomain) return reply.code(400).send({ error: 'subdomain is required' });
 
-    const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     if (sub !== subdomain.trim().toLowerCase()) {
-      return reply.code(400).send({ error: 'Subdomain may only contain letters, numbers, and hyphens.' });
+      return reply.code(400).send({ error: 'Subdomain may only contain letters, numbers, hyphens, and underscores.' });
     }
     if (sub.length === 0) return reply.code(400).send({ error: 'subdomain is required' });
 

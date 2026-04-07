@@ -66,9 +66,9 @@ module.exports = async function dashboardRoutes(fastify) {
     const { subdomain, zone_id } = req.query || {};
     if (!subdomain || !zone_id) return reply.send({ available: false, reason: 'missing' });
 
-    const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     if (sub !== subdomain.trim().toLowerCase()) {
-      return reply.send({ available: false, reason: 'Letters, numbers, and hyphens only.' });
+      return reply.send({ available: false, reason: 'Letters, numbers, hyphens, and underscores only.' });
     }
     if (sub.length === 0) return reply.send({ available: false, reason: 'missing' });
 
@@ -111,9 +111,9 @@ module.exports = async function dashboardRoutes(fastify) {
       return reply.redirect('/dashboard');
     }
 
-    const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     if (sub !== subdomain.trim().toLowerCase()) {
-      req.session.flash = { type: 'error', message: 'Subdomain can only contain letters, numbers, and hyphens.' };
+      req.session.flash = { type: 'error', message: 'Subdomain can only contain letters, numbers, hyphens, and underscores.' };
       return reply.redirect('/dashboard');
     }
 

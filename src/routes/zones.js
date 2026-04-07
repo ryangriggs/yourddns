@@ -56,12 +56,12 @@ function validateStaticRecord(name, type, value, priority) {
 
   // Validate each label of the name (allow wildcard '*' as first label)
   if (!isApex) {
-    const labelRe = /^[a-z0-9*]([a-z0-9-]*[a-z0-9])?$|^[a-z0-9*]$/i;
+    const labelRe = /^[a-z0-9_*]([a-z0-9_-]*[a-z0-9_])?$|^[a-z0-9_*]$/i;
     const labels = trimmedName.split('.');
     for (const label of labels) {
       if (label === '*') continue; // wildcard label
       if (label.length === 0 || label.length > 63 || !labelRe.test(label)) {
-        return `Invalid name label: "${label}". Use alphanumeric characters and hyphens only.`;
+        return `Invalid name label: "${label}". Use alphanumeric characters, hyphens, and underscores only.`;
       }
     }
   }
@@ -75,7 +75,7 @@ function validateStaticRecord(name, type, value, priority) {
   const isHostname = (h) => {
     const clean = h.replace(/\.$/, '');
     if (!clean) return false;
-    const labelRe = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$|^[a-z0-9]$/i;
+    const labelRe = /^[a-z0-9_]([a-z0-9_-]*[a-z0-9_])?$|^[a-z0-9_]$/i;
     return clean.split('.').every(l => l.length > 0 && l.length <= 63 && labelRe.test(l));
   };
 

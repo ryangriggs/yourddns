@@ -4,7 +4,8 @@
       "Bash(npm audit:*)",
       "Bash(head -20 grep -n \"name=\\\\|computer\\\\|?name\" C:/temp/yourddns/src/views/dashboard/api-keys.njk)",
       "Bash(head -20 grep -n \"name=\\\\|computer\\\\|?name\" C:/temp/yourddns/README.md)",
-      "Bash(head -10 grep -n \"user\\\\|siteName\\\\|header\\\\|nav\" C:/temp/yourddns/src/views/landing.njk)"
+      "Bash(head -10 grep -n \"user\\\\|siteName\\\\|header\\\\|nav\" C:/temp/yourddns/src/views/landing.njk)",
+      "Bash(grep:*)"
     ]
   }
 }
