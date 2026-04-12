@@ -16,8 +16,62 @@ function flash(req) {
 module.exports = async function adminRoutes(fastify) {
   fastify.addHook('preHandler', fastify.requireAdmin);
 
-  // GET /admin — redirect to users
-  fastify.get('/admin', async (req, reply) => reply.redirect('/admin/users'));
+  // GET /admin — dashboard
+  fastify.get('/admin', async (req, reply) => {
+    const db = getDb();
+
+    const userStats = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END) as verified,
+        SUM(CASE WHEN email_verified = 0 THEN 1 ELSE 0 END) as unverified
+      FROM users
+    `).get();
+
+    const ddnsCount   = db.prepare('SELECT COUNT(*) as c FROM ddns_records').get().c;
+    const customCount = db.prepare("SELECT COUNT(*) as c FROM zones WHERE user_id IS NOT NULL AND validated = 1").get().c;
+
+    return reply.view('admin/dashboard.njk', {
+      title: 'Dashboard',
+      activePage: 'dashboard',
+      flash: flash(req),
+      userStats,
+      ddnsCount,
+      customCount,
+    });
+  });
+
+  // GET /admin/dashboard/data — JSON chart data
+  fastify.get('/admin/dashboard/data', async (req, reply) => {
+    const db = getDb();
+    const today    = new Date().toISOString().split('T')[0];
+    const weekAgo  = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const fromDate = (req.query.from || weekAgo).slice(0, 10);
+    const toDate   = (req.query.to   || today).slice(0, 10);
+
+    const logins = db.prepare(`
+      SELECT date(logged_in_at) as day, COUNT(*) as count
+      FROM login_logs
+      WHERE date(logged_in_at) >= ? AND date(logged_in_at) <= ?
+      GROUP BY day ORDER BY day
+    `).all(fromDate, toDate);
+
+    const updates = db.prepare(`
+      SELECT date(updated_at) as day, COUNT(*) as count
+      FROM update_logs
+      WHERE date(updated_at) >= ? AND date(updated_at) <= ? AND success = 1
+      GROUP BY day ORDER BY day
+    `).all(fromDate, toDate);
+
+    const lookups = db.prepare(`
+      SELECT date(queried_at) as day, COUNT(*) as count
+      FROM dns_hits
+      WHERE date(queried_at) >= ? AND date(queried_at) <= ?
+      GROUP BY day ORDER BY day
+    `).all(fromDate, toDate);
+
+    return reply.send({ logins, updates, lookups });
+  });
 
   // ── Users ──────────────────────────────────────────────────────────────────
 
@@ -370,7 +424,7 @@ module.exports = async function adminRoutes(fastify) {
   });
 
   fastify.post('/admin/settings', async (req, reply) => {
-    const textFields = ['site_name','site_domain','site_url','site_ip','support_email','landing_title','favicon_emoji','otp_resend_interval_minutes','otp_max_attempts_per_hour','password_max_attempts_per_hour','stripe_publishable_key','news_content','global_min_ttl','ns_primary','ns_secondary','zone_validation_timeout_hours','github_sponsors_url','paypal_donation_url','backup_interval_hours','backup_retention_days'];
+    const textFields = ['site_name','site_domain','site_url','site_ip','support_email','landing_title','favicon_emoji','otp_resend_interval_minutes','otp_max_attempts_per_hour','password_max_attempts_per_hour','stripe_publishable_key','news_content','global_min_ttl','ns_primary','ns_secondary','zone_validation_timeout_hours','github_sponsors_url','paypal_donation_url','backup_interval_hours','backup_retention_days','unverified_user_max_days'];
     const checkboxFields = ['registration_enabled','stripe_enabled','subscriptions_enabled'];
     for (const key of textFields) {
       if (req.body[key] !== undefined) setSetting(key, req.body[key]);

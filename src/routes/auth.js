@@ -22,6 +22,7 @@ async function completeLoginOrRequire2fa(req, reply, user, dest) {
   }
   await req.session.regenerate();
   req.session.userId = user.id;
+  try { getDb().prepare('INSERT INTO login_logs (user_id, ip_address) VALUES (?, ?)').run(user.id, req.ip || null); } catch (_) {}
   return reply.redirect(dest);
 }
 
@@ -412,6 +413,7 @@ module.exports = async function authRoutes(fastify) {
       delete req.session.pending2faReturnTo;
       await req.session.regenerate();
       req.session.userId = user.id;
+      try { db.prepare('INSERT INTO login_logs (user_id, ip_address) VALUES (?, ?)').run(user.id, req.ip || null); } catch (_) {}
       return reply.redirect(dest);
     }
 
@@ -424,6 +426,7 @@ module.exports = async function authRoutes(fastify) {
       delete req.session.pending2faReturnTo;
       await req.session.regenerate();
       req.session.userId = user.id;
+      try { db.prepare('INSERT INTO login_logs (user_id, ip_address) VALUES (?, ?)').run(user.id, req.ip || null); } catch (_) {}
       return reply.redirect(dest);
     }
 

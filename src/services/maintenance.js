@@ -53,6 +53,20 @@ function pruneOldHits() {
         AND created_at < datetime('now', '-' || ? || ' hours')
     `).run(timeoutHours);
 
+    // Delete unverified user accounts older than the configured threshold
+    const unverifiedMaxDays = parseInt(getSetting('unverified_user_max_days') || '0', 10);
+    if (unverifiedMaxDays > 0) {
+      const result = db.prepare(`
+        DELETE FROM users
+        WHERE email_verified = 0
+          AND is_admin = 0
+          AND created_at < datetime('now', '-' || ? || ' days')
+      `).run(unverifiedMaxDays);
+      if (result.changes > 0) {
+        console.log(`[maintenance] Deleted ${result.changes} unverified account(s) older than ${unverifiedMaxDays} days`);
+      }
+    }
+
   } catch (err) {
     console.error('[maintenance] prune error:', err.message);
   }

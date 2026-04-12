@@ -1,0 +1,185 @@
+{% extends "layouts/admin.njk" %}
+{% set activePage = 'dashboard' %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header"><h1 class="page-title">Dashboard</h1></div>
+
+  {% if flash %}<div class="alert alert-{{ flash.type }} mb-4">{{ flash.message }}</div>{% endif %}
+
+  <!-- Summary cards -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem">
+
+    <div class="card" style="text-align:center">
+      <div class="card-body" style="padding:1.25rem">
+        <div style="font-size:2rem;font-weight:700;line-height:1">{{ userStats.total }}</div>
+        <div class="text-muted" style="font-size:0.8125rem;margin-top:4px">Total Users</div>
+        <div style="display:flex;justify-content:center;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <span class="badge badge-green">{{ userStats.verified }} verified</span>
+          <span class="badge badge-yellow">{{ userStats.unverified }} unverified</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="text-align:center">
+      <div class="card-body" style="padding:1.25rem">
+        <div style="font-size:2rem;font-weight:700;line-height:1">{{ userStats.verified }}</div>
+        <div class="text-muted" style="font-size:0.8125rem;margin-top:4px">Verified Users</div>
+      </div>
+    </div>
+
+    <div class="card" style="text-align:center">
+      <div class="card-body" style="padding:1.25rem">
+        <div style="font-size:2rem;font-weight:700;line-height:1">{{ userStats.unverified }}</div>
+        <div class="text-muted" style="font-size:0.8125rem;margin-top:4px">Unverified Users</div>
+      </div>
+    </div>
+
+    <div class="card" style="text-align:center">
+      <div class="card-body" style="padding:1.25rem">
+        <div style="font-size:2rem;font-weight:700;line-height:1">{{ ddnsCount }}</div>
+        <div class="text-muted" style="font-size:0.8125rem;margin-top:4px">DDNS Records</div>
+      </div>
+    </div>
+
+    <div class="card" style="text-align:center">
+      <div class="card-body" style="padding:1.25rem">
+        <div style="font-size:2rem;font-weight:700;line-height:1">{{ customCount }}</div>
+        <div class="text-muted" style="font-size:0.8125rem;margin-top:4px">Custom Domains</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Activity chart -->
+  <div class="card mb-4">
+    <div class="card-header" style="flex-wrap:wrap;gap:0.75rem">
+      <h2 class="card-title">Activity</h2>
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+        <div class="btn-group" id="periodBtns">
+          <button type="button" class="btn btn-sm btn-outline" data-days="7"  onclick="setPeriod(7)">7d</button>
+          <button type="button" class="btn btn-sm btn-outline" data-days="30" onclick="setPeriod(30)">30d</button>
+          <button type="button" class="btn btn-sm btn-outline" data-days="90" onclick="setPeriod(90)">90d</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="date" id="fromDate" class="form-input form-input-sm" style="width:140px">
+          <span class="text-muted">—</span>
+          <input type="date" id="toDate" class="form-input form-input-sm" style="width:140px">
+          <button type="button" class="btn btn-sm btn-outline" onclick="loadChart()">Apply</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div style="position:relative;height:320px"><canvas id="activityChart"></canvas></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DATA_URL = '/admin/dashboard/data';
+let chart = null;
+
+const fmt = d => d.toISOString().split('T')[0];
+
+function fillDates(from, to, data) {
+  const map = {};
+  for (const d of data) map[d.day] = d.count;
+  const labels = [], values = [];
+  const cur = new Date(from + 'T00:00:00'), end = new Date(to + 'T00:00:00');
+  while (cur <= end) {
+    const k = fmt(cur);
+    labels.push(k);
+    values.push(map[k] || 0);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return { labels, values };
+}
+
+function setDateInputs(from, to) {
+  document.getElementById('fromDate').value = from;
+  document.getElementById('toDate').value   = to;
+}
+
+function setPeriod(days) {
+  const to   = new Date();
+  const from = new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000);
+  setDateInputs(fmt(from), fmt(to));
+  document.querySelectorAll('#periodBtns button').forEach(b => {
+    b.classList.toggle('btn-primary', Number(b.dataset.days) === days);
+    b.classList.toggle('btn-outline', Number(b.dataset.days) !== days);
+  });
+  loadChart();
+}
+
+async function loadChart() {
+  const from = document.getElementById('fromDate').value;
+  const to   = document.getElementById('toDate').value;
+  if (!from || !to || from > to) return;
+
+  let data;
+  try {
+    const res = await fetch(`${DATA_URL}?from=${from}&to=${to}`);
+    data = await res.json();
+  } catch (e) { return; }
+
+  const { labels, values: loginVals }  = fillDates(from, to, data.logins);
+  const { values: updateVals }         = fillDates(from, to, data.updates);
+  const { values: lookupVals }         = fillDates(from, to, data.lookups);
+
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('activityChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Logins',
+          data: loginVals,
+          borderColor: '#2563eb',
+          backgroundColor: '#2563eb22',
+          fill: true,
+          tension: 0.3,
+          pointRadius: labels.length <= 31 ? 3 : 0,
+        },
+        {
+          label: 'DDNS Updates',
+          data: updateVals,
+          borderColor: '#16a34a',
+          backgroundColor: '#16a34a22',
+          fill: true,
+          tension: 0.3,
+          pointRadius: labels.length <= 31 ? 3 : 0,
+        },
+        {
+          label: 'DNS Lookups',
+          data: lookupVals,
+          borderColor: '#d97706',
+          backgroundColor: '#d9770622',
+          fill: true,
+          tension: 0.3,
+          pointRadius: labels.length <= 31 ? 3 : 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } },
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } },
+      },
+    },
+  });
+}
+
+// Initialise to last 7 days
+setPeriod(7);
+</script>
+{% endblock %}

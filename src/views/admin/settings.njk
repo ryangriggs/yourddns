@@ -145,6 +145,17 @@
         </div>
       </div>
 
+      <div class="card mb-4" id="settings-users">
+        <div class="card-header"><h2 class="card-title">User Management</h2></div>
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Delete unverified accounts after (days)</label>
+            <input type="number" name="unverified_user_max_days" class="form-input" value="{{ settings.unverified_user_max_days.value }}" min="0" style="max-width:120px">
+            <p class="form-hint">Unverified accounts older than this many days are automatically deleted. Set to 0 to disable. The cleanup runs hourly.</p>
+          </div>
+        </div>
+      </div>
+
       <div class="card mb-4" id="settings-backups">
         <div class="card-header"><h2 class="card-title">Backups</h2></div>
         <div class="card-body">
@@ -197,6 +208,7 @@
           <a href="#settings-auth"      class="settings-sidenav-link" data-target="settings-auth">Authentication</a>
           <a href="#settings-dns"       class="settings-sidenav-link" data-target="settings-dns">DNS</a>
           <a href="#settings-donations" class="settings-sidenav-link" data-target="settings-donations">Donations</a>
+          <a href="#settings-users"     class="settings-sidenav-link" data-target="settings-users">User Management</a>
           <a href="#settings-backups"   class="settings-sidenav-link" data-target="settings-backups">Backups</a>
           <a href="#settings-billing"   class="settings-sidenav-link" data-target="settings-billing">Billing</a>
         </nav>

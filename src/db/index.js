@@ -79,8 +79,9 @@ async function initDb() {
   ensureSettings.run('subscriptions_enabled',         'false',                                         'Show paid plans and upgrade prompts');
   ensureSettings.run('github_sponsors_url',           'https://github.com/sponsors/ryangriggs',        'GitHub Sponsors link shown on the /donate page');
   ensureSettings.run('paypal_donation_url',           '',                                              'PayPal donation link shown on the /donate page (optional)');
-  ensureSettings.run('backup_interval_hours',         '24',                                            'Auto-backup every X hours (0 = disabled)');
-  ensureSettings.run('backup_retention_days',         '30',                                            'Delete backups older than X days (0 = keep forever)');
+  ensureSettings.run('backup_interval_hours',           '24',   'Auto-backup every X hours (0 = disabled)');
+  ensureSettings.run('backup_retention_days',           '30',   'Delete backups older than X days (0 = keep forever)');
+  ensureSettings.run('unverified_user_max_days',        '0',    'Delete unverified accounts older than X days (0 = disabled)');
 
   // update_logs — computer_name and new_ip6 columns
   const updateLogCols = db.prepare('PRAGMA table_info(update_logs)').all().map(c => c.name);
@@ -106,6 +107,20 @@ async function initDb() {
   if (!userCols.includes('totp_backup_codes')) {
     db.exec('ALTER TABLE users ADD COLUMN totp_backup_codes TEXT');
     console.log('[db] Migration: added totp_backup_codes to users');
+  }
+
+  // login_logs — added for admin dashboard activity charts
+  const loginLogsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='login_logs'").get();
+  if (!loginLogsTable) {
+    db.exec(`CREATE TABLE IF NOT EXISTS login_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      logged_in_at TEXT NOT NULL DEFAULT (datetime('now')),
+      ip_address TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_login_logs_time ON login_logs(logged_in_at)');
+    console.log('[db] Migration: created login_logs table');
   }
 
   // zone_api_keys — added when zone API was introduced
@@ -158,8 +173,9 @@ async function seedDefaultData() {
     ['subscriptions_enabled',       'false', 'Show paid plans and upgrade prompts'],
     ['github_sponsors_url',         'https://github.com/sponsors/ryangriggs', 'GitHub Sponsors link shown on the /donate page'],
     ['paypal_donation_url',         '',      'PayPal donation link shown on the /donate page (optional)'],
-    ['backup_interval_hours',       '24',   'Auto-backup every X hours (0 = disabled)'],
-    ['backup_retention_days',       '30',   'Delete backups older than X days (0 = keep forever)'],
+    ['backup_interval_hours',         '24',  'Auto-backup every X hours (0 = disabled)'],
+    ['backup_retention_days',         '30',  'Delete backups older than X days (0 = keep forever)'],
+    ['unverified_user_max_days',      '0',   'Delete unverified accounts older than X days (0 = disabled)'],
     ['stripe_enabled',              'false', 'Enable Stripe billing'],
     ['stripe_publishable_key',      process.env.STRIPE_PUBLISHABLE_KEY || '', 'Stripe publishable key'],
     ['landing_title',               'Dynamic DNS for Everyone', 'Hero headline on the landing page'],

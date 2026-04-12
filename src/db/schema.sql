@@ -185,6 +185,14 @@ CREATE TABLE IF NOT EXISTS oauth_accounts (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS login_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  logged_in_at TEXT NOT NULL DEFAULT (datetime('now')),
+  ip_address TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_ddns_records_zone_sub ON ddns_records(zone_id, subdomain);
 CREATE INDEX IF NOT EXISTS idx_ddns_records_user ON ddns_records(user_id);
@@ -192,3 +200,4 @@ CREATE INDEX IF NOT EXISTS idx_ddns_records_pat ON ddns_records(pat_hash);
 CREATE INDEX IF NOT EXISTS idx_dns_hits_record_time ON dns_hits(record_id, queried_at);
 CREATE INDEX IF NOT EXISTS idx_update_logs_record_time ON update_logs(record_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_blocked_ips ON blocked_ips(ip_address);
+CREATE INDEX IF NOT EXISTS idx_login_logs_time ON login_logs(logged_in_at);

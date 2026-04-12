@@ -18,6 +18,7 @@
         <a href="/" class="logo">{{ siteName }}</a>
         <span class="admin-badge">Admin</span>
         <nav class="header-nav">
+          <a href="/admin" class="nav-link {% if activePage == 'dashboard' %}active{% endif %}">Dashboard</a>
           <a href="/admin/users" class="nav-link {% if activePage == 'users' %}active{% endif %}">Users</a>
           <a href="/admin/domains" class="nav-link {% if activePage == 'domains' %}active{% endif %}">Domains</a>
           <a href="/admin/records" class="nav-link {% if activePage == 'records' %}active{% endif %}">Records</a>
@@ -45,6 +46,7 @@
       </button>
     </div>
     <nav class="mobile-nav">
+      <a href="/admin" class="mobile-nav-link {% if activePage == 'dashboard' %}active{% endif %}">Dashboard</a>
       <a href="/admin/users" class="mobile-nav-link {% if activePage == 'users' %}active{% endif %}">Users</a>
       <a href="/admin/domains" class="mobile-nav-link {% if activePage == 'domains' %}active{% endif %}">Domains</a>
       <a href="/admin/records" class="mobile-nav-link {% if activePage == 'records' %}active{% endif %}">Records</a>
